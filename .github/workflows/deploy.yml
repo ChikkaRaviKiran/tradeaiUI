@@ -100,7 +100,7 @@ jobs:
             sudo docker pull "${FRONTEND_IMAGE}:${FRONTEND_TAG}"
 
             # Start frontend and restart nginx to pick up changes
-            sudo -E docker compose -f docker-compose.prod.yml up -d frontend
+            sudo -E docker compose -f docker-compose.prod.yml up -d --no-deps frontend
             sudo -E docker compose -f docker-compose.prod.yml restart nginx
 
             # Clean up old images
