@@ -13,6 +13,10 @@ on:
 env:
   REGISTRY: ghcr.io
 
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build & Push Frontend Image
@@ -22,10 +26,6 @@ jobs:
       packages: write
     outputs:
       image_name: ${{ steps.image.outputs.name }}
-
-concurrency:
-  group: deploy-frontend
-  cancel-in-progress: false
 
     steps:
       - name: Checkout code
