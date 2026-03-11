@@ -81,15 +81,15 @@ jobs:
             set -a; source .env; set +a
 
             # Log in to GHCR
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Export for docker-compose
             export FRONTEND_IMAGE="${FRONTEND_IMAGE}"
             export FRONTEND_TAG="${IMAGE_TAG}"
 
             # Pull and restart frontend only
-            docker compose -f docker-compose.prod.yml pull frontend
-            docker compose -f docker-compose.prod.yml up -d frontend
+            sudo docker compose -f docker-compose.prod.yml pull frontend
+            sudo docker compose -f docker-compose.prod.yml up -d frontend
 
             # Clean up old images
-            docker image prune -f
+            sudo docker image prune -f
