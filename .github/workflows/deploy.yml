@@ -100,9 +100,9 @@ jobs:
             echo "Pulling ${FRONTEND_IMAGE}:${FRONTEND_TAG}"
             sudo docker pull "${FRONTEND_IMAGE}:${FRONTEND_TAG}"
 
-            # Start frontend and restart nginx to pick up changes
+            # Start frontend and reload system nginx
             sudo -E docker compose -f docker-compose.prod.yml up -d --no-deps frontend
-            sudo -E docker compose -f docker-compose.prod.yml restart nginx
+            sudo systemctl reload nginx
 
             # Clean up old images
             sudo docker image prune -f
