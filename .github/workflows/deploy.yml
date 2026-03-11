@@ -68,11 +68,12 @@ jobs:
         env:
           FRONTEND_IMAGE: ${{ needs.build.outputs.image_name }}
           IMAGE_TAG: ${{ github.sha }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
         with:
           host: ${{ secrets.AWS_HOST }}
           username: ${{ secrets.AWS_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
-          envs: FRONTEND_IMAGE,IMAGE_TAG
+          envs: FRONTEND_IMAGE,IMAGE_TAG,GHCR_TOKEN
           script: |
             set -e
 
@@ -89,11 +90,18 @@ jobs:
             export FRONTEND_IMAGE="${DEPLOY_IMAGE}"
             export FRONTEND_TAG="${DEPLOY_TAG}"
 
-            # Clear any stale Docker credentials (public images need no auth)
-            sudo docker logout ghcr.io 2>/dev/null || true
+            # Log in to GHCR
+            echo "${GHCR_TOKEN}" | sudo docker login ghcr.io -u ChikkaRaviKiran --password-stdin
 
-            # Pull and restart frontend only
-            sudo -E docker compose -f docker-compose.prod.yml pull frontend
+            # Pull images directly (more reliable than compose pull)
+            echo "Pulling ${FRONTEND_IMAGE}:${FRONTEND_TAG}"
+            sudo docker pull "${FRONTEND_IMAGE}:${FRONTEND_TAG}" || {
+              echo "SHA tag pull failed, trying latest..."
+              sudo docker pull "${FRONTEND_IMAGE}:latest"
+              sudo docker tag "${FRONTEND_IMAGE}:latest" "${FRONTEND_IMAGE}:${FRONTEND_TAG}"
+            }
+
+            # Restart frontend
             sudo -E docker compose -f docker-compose.prod.yml up -d frontend
 
             # Clean up old images
