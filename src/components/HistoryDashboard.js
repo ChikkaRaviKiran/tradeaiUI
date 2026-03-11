@@ -346,23 +346,24 @@ function SnapshotTimeline({ snapshots }) {
                 range_bound: 'var(--accent-yellow)',
                 high_volatility: 'var(--accent-red)',
                 low_volatility: 'var(--accent-blue)',
+                insufficient_data: 'var(--text-secondary)',
               }[s.regime] || 'var(--text-primary)';
 
               return (
                 <tr key={i}>
                   <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{s.time}</td>
                   <td style={{ fontWeight: 600 }}>{s.nifty_price?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                  <td>{s.rsi?.toFixed(1)}</td>
-                  <td>{s.adx?.toFixed(1)}</td>
-                  <td>{s.macd?.toFixed(2)}</td>
-                  <td>{s.ema9?.toFixed(1)}</td>
-                  <td>{s.ema20?.toFixed(1)}</td>
+                  <td>{s.rsi?.toFixed(1) ?? '—'}</td>
+                  <td>{s.adx?.toFixed(1) ?? '—'}</td>
+                  <td>{s.macd?.toFixed(2) ?? '—'}</td>
+                  <td>{s.ema9?.toFixed(1) ?? '—'}</td>
+                  <td>{s.ema20?.toFixed(1) ?? '—'}</td>
                   <td style={{ color: regimeColor, fontSize: '0.75rem', fontWeight: 600 }}>
                     {s.regime?.replace('_', ' ').toUpperCase()}
                   </td>
-                  <td>{s.pcr?.toFixed(2)}</td>
+                  <td>{s.pcr?.toFixed(2) ?? '—'}</td>
                   <td style={{
-                    color: s.global_bias === 'bullish' ? 'var(--accent-green)' : s.global_bias === 'bearish' ? 'var(--accent-red)' : 'var(--accent-yellow)',
+                    color: s.global_bias === 'bullish' ? 'var(--accent-green)' : s.global_bias === 'bearish' ? 'var(--accent-red)' : s.global_bias === 'unavailable' ? 'var(--text-secondary)' : 'var(--accent-yellow)',
                     fontSize: '0.75rem', fontWeight: 600,
                   }}>
                     {s.global_bias?.toUpperCase()}

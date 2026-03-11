@@ -19,12 +19,14 @@ function MarketOverview({ snapshot, globalIndices = [] }) {
     range_bound: 'var(--accent-yellow)',
     high_volatility: 'var(--accent-red)',
     low_volatility: 'var(--accent-blue)',
+    insufficient_data: 'var(--text-secondary)',
   };
 
   const biasColors = {
     bullish: 'var(--accent-green)',
     bearish: 'var(--accent-red)',
     neutral: 'var(--accent-yellow)',
+    unavailable: 'var(--text-secondary)',
   };
 
   return (
@@ -34,15 +36,17 @@ function MarketOverview({ snapshot, globalIndices = [] }) {
           <div className="card-title">NIFTY Price</div>
           <div className="stat-value">{snapshot.nifty_price?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
           <div className="stat-label">
-            RSI: {snapshot.indicators?.rsi?.toFixed(1)} | ADX: {snapshot.indicators?.adx?.toFixed(1)}
+            RSI: {snapshot.indicators?.rsi?.toFixed(1) ?? '—'} | ADX: {snapshot.indicators?.adx?.toFixed(1) ?? '—'}
           </div>
         </div>
 
         <div className="card">
           <div className="card-title">VWAP</div>
-          <div className="stat-value">{snapshot.vwap?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+          <div className="stat-value">{snapshot.vwap?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) ?? '—'}</div>
           <div className="stat-label">
-            {snapshot.nifty_price > snapshot.vwap ? (
+            {snapshot.vwap == null ? (
+              <span style={{ color: 'var(--text-secondary)' }}>No volume data</span>
+            ) : snapshot.nifty_price > snapshot.vwap ? (
               <span className="positive">Price above VWAP</span>
             ) : (
               <span className="negative">Price below VWAP</span>
@@ -56,7 +60,7 @@ function MarketOverview({ snapshot, globalIndices = [] }) {
             {snapshot.regime?.replace('_', ' ').toUpperCase()}
           </div>
           <div className="stat-label">
-            PCR: {snapshot.options_metrics?.pcr?.toFixed(2)} | Max Pain: {snapshot.options_metrics?.max_pain?.toLocaleString()}
+            PCR: {snapshot.options_metrics?.pcr?.toFixed(2) ?? '—'} | Max Pain: {snapshot.options_metrics?.max_pain?.toLocaleString() ?? '—'}
           </div>
         </div>
 
