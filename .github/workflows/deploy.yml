@@ -95,16 +95,13 @@ jobs:
             sudo mkdir -p /root/.docker
             echo "{\"auths\":{\"ghcr.io\":{\"auth\":\"${DOCKER_AUTH}\"}}}" | sudo tee /root/.docker/config.json > /dev/null
 
-            # Pull images directly (more reliable than compose pull)
+            # Pull frontend image
             echo "Pulling ${FRONTEND_IMAGE}:${FRONTEND_TAG}"
-            sudo docker pull "${FRONTEND_IMAGE}:${FRONTEND_TAG}" || {
-              echo "SHA tag pull failed, trying latest..."
-              sudo docker pull "${FRONTEND_IMAGE}:latest"
-              sudo docker tag "${FRONTEND_IMAGE}:latest" "${FRONTEND_IMAGE}:${FRONTEND_TAG}"
-            }
+            sudo docker pull "${FRONTEND_IMAGE}:${FRONTEND_TAG}"
 
-            # Restart frontend
+            # Start frontend and restart nginx to pick up changes
             sudo -E docker compose -f docker-compose.prod.yml up -d frontend
+            sudo -E docker compose -f docker-compose.prod.yml restart nginx
 
             # Clean up old images
             sudo docker image prune -f
