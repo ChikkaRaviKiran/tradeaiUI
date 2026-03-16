@@ -104,7 +104,12 @@ function LiveDashboard() {
               <div>Updated: {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
             )}
             {systemStatus.cycle_count > 0 && (
-              <div>Cycle #{systemStatus.cycle_count} · Expiry: {systemStatus.expiry || '—'}</div>
+              <div>
+                Cycle #{systemStatus.cycle_count} · Expiry: {systemStatus.expiry || '—'}
+                {systemStatus.db_connected === false && (
+                  <span style={{ color: 'var(--accent-red)', marginLeft: 8 }}>· DB Disconnected</span>
+                )}
+              </div>
             )}
           </div>
           <span className={`status-badge ${isRunning ? 'running' : 'stopped'}`}>

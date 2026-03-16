@@ -225,7 +225,7 @@ function DayView({ date, data, loading, onBack, onPrevDay, onNextDay }) {
           <h2>{formatDate(date)}</h2>
           {summary.has_data && (
             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              {summary.total_snapshots} snapshots · {summary.first_time} – {summary.last_time}
+              {summary.source === 'live' ? '🟢 Live data' : `${summary.total_snapshots} snapshots`} · {summary.first_time} – {summary.last_time}
             </span>
           )}
         </div>
