@@ -8,6 +8,7 @@ import {
   fetchPerformance,
   fetchAlerts,
   fetchSystemStatus,
+  fetchRecommendations,
   startSystem,
   stopSystem,
 } from './api';
@@ -16,6 +17,7 @@ import ActiveTrades from './components/ActiveTrades';
 import CompletedTrades from './components/CompletedTrades';
 import PerformancePanel from './components/PerformancePanel';
 import AlertsPanel from './components/AlertsPanel';
+import RecommendationsPanel from './components/RecommendationsPanel';
 import HistoryDashboard from './components/HistoryDashboard';
 
 const REFRESH_INTERVAL = 15000; // 15 seconds
@@ -37,12 +39,13 @@ function LiveDashboard() {
   const [performance, setPerformance] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [systemStatus, setSystemStatus] = useState({ status: 'stopped' });
+  const [recommendations, setRecommendations] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes] = await Promise.allSettled([
+      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes, recsRes] = await Promise.allSettled([
         fetchMarketSnapshot(),
         fetchActiveTrades(),
         fetchTodayTrades(),
@@ -50,6 +53,7 @@ function LiveDashboard() {
         fetchAlerts(),
         fetchSystemStatus(),
         fetchGlobalIndices(),
+        fetchRecommendations(),
       ]);
 
       if (snapRes.status === 'fulfilled') setSnapshot(snapRes.value.data);
@@ -59,6 +63,7 @@ function LiveDashboard() {
       if (alertsRes.status === 'fulfilled') setAlerts(alertsRes.value.data);
       if (statusRes.status === 'fulfilled') setSystemStatus(statusRes.value.data);
       if (globalRes.status === 'fulfilled') setGlobalIndices(globalRes.value.data);
+      if (recsRes.status === 'fulfilled') setRecommendations(recsRes.value.data);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -153,6 +158,12 @@ function LiveDashboard() {
             <AlertsPanel alerts={alerts} />
           </div>
         </div>
+      </section>
+
+      {/* Strategy Recommendations */}
+      <section className="section">
+        <h2 className="section-title">Strategy Recommendations</h2>
+        <RecommendationsPanel recommendations={recommendations} />
       </section>
 
       {/* Completed Trades */}
