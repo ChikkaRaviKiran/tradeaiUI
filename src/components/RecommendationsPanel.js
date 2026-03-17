@@ -1,23 +1,52 @@
-import React, { useState } from 'react';
-import { triggerEvaluation } from '../api';
+import React, { useState, useEffect, useRef } from 'react';
+import { triggerEvaluation, fetchEvalStatus, fetchRecommendations } from '../api';
 
-function RecommendationsPanel({ recommendations }) {
+function RecommendationsPanel({ recommendations, onRecommendationsUpdate }) {
   const [running, setRunning] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
+  const pollRef = useRef(null);
   const data = recommendations || {};
   const recs = data.recommendations || [];
   const evalDate = data.eval_date;
   const runTime = data.run_time_seconds;
   const totalSim = data.total_simulated_trades;
 
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
   const handleRunEval = async () => {
     setRunning(true);
+    setStatusMsg('Starting evaluation...');
     try {
       await triggerEvaluation();
+      // Poll status every 3s until complete
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await fetchEvalStatus();
+          const st = res.data;
+          setStatusMsg(st.message || st.status);
+          if (!st.running) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+            setRunning(false);
+            if (st.status === 'completed') {
+              // Fetch fresh recommendations
+              try {
+                const recsRes = await fetchRecommendations();
+                if (onRecommendationsUpdate) onRecommendationsUpdate(recsRes.data);
+              } catch {}
+            }
+          }
+        } catch {
+          // ignore poll errors
+        }
+      }, 3000);
     } catch {
-      // ignore — will refresh on next poll
+      setRunning(false);
+      setStatusMsg('Failed to start evaluation');
     }
-    // Keep button disabled for a bit since eval runs in background
-    setTimeout(() => setRunning(false), 10000);
   };
 
   const scoreColor = (score) => {
@@ -54,7 +83,7 @@ function RecommendationsPanel({ recommendations }) {
           disabled={running}
           onClick={handleRunEval}
         >
-          {running ? 'Running...' : 'Run Evaluation'}
+          {running ? (statusMsg || 'Running...') : 'Run Evaluation'}
         </button>
       </div>
 

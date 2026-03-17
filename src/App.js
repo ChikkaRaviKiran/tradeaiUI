@@ -163,7 +163,7 @@ function LiveDashboard() {
       {/* Strategy Recommendations */}
       <section className="section">
         <h2 className="section-title">Strategy Recommendations</h2>
-        <RecommendationsPanel recommendations={recommendations} />
+        <RecommendationsPanel recommendations={recommendations} onRecommendationsUpdate={setRecommendations} />
       </section>
 
       {/* Completed Trades */}

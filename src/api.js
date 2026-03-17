@@ -29,6 +29,7 @@ export const fetchDayAlerts = (date) => api.get(`/api/history/alerts/${encodeURI
 // Strategy Evaluation / Recommendations
 export const fetchRecommendations = () => api.get('/api/recommendations');
 export const triggerEvaluation = () => api.post('/api/evaluate/run');
+export const fetchEvalStatus = () => api.get('/api/evaluate/status');
 export const fetchEvaluationHistory = (date) => api.get(`/api/evaluate/history/${encodeURIComponent(date)}`);
 
 export default api;
