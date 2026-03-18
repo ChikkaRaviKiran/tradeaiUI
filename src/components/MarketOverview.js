@@ -71,6 +71,12 @@ function MarketOverview({ snapshot, globalIndices = [] }) {
           </div>
           <div className="stat-label">
             PCR: {opt.pcr?.toFixed(2) ?? '—'} | Max Pain: {opt.max_pain?.toLocaleString() ?? '—'}
+            {snapshot.htf_trend && snapshot.htf_trend !== 'neutral' && (
+              <span style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 600,
+                background: snapshot.htf_trend === 'bullish' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                color: snapshot.htf_trend === 'bullish' ? 'var(--accent-green)' : 'var(--accent-red)',
+              }}>5m {snapshot.htf_trend.toUpperCase()}</span>
+            )}
           </div>
         </div>
 

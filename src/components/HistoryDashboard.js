@@ -335,6 +335,7 @@ function SnapshotTimeline({ snapshots }) {
               <th>EMA9</th>
               <th>EMA20</th>
               <th>Regime</th>
+              <th>5m Trend</th>
               <th>PCR</th>
               <th>Bias</th>
             </tr>
@@ -360,6 +361,12 @@ function SnapshotTimeline({ snapshots }) {
                   <td>{s.ema20?.toFixed(1) ?? '—'}</td>
                   <td style={{ color: regimeColor, fontSize: '0.75rem', fontWeight: 600 }}>
                     {s.regime?.replace('_', ' ').toUpperCase()}
+                  </td>
+                  <td style={{
+                    color: s.htf_trend === 'bullish' ? 'var(--accent-green)' : s.htf_trend === 'bearish' ? 'var(--accent-red)' : 'var(--text-secondary)',
+                    fontSize: '0.75rem', fontWeight: 600,
+                  }}>
+                    {s.htf_trend ? s.htf_trend.toUpperCase() : '—'}
                   </td>
                   <td>{s.pcr?.toFixed(2) ?? '—'}</td>
                   <td style={{
@@ -400,6 +407,7 @@ function TradesSection({ trades }) {
               <th>SL</th>
               <th>T1</th>
               <th>PnL</th>
+              <th>Exit</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -418,6 +426,9 @@ function TradesSection({ trades }) {
                   <td>{t.target1?.toFixed(2)}</td>
                   <td className={isWin ? 'positive' : 'negative'} style={{ fontWeight: 600 }}>
                     {t.pnl != null ? `${isWin ? '+' : ''}${t.pnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}
+                  </td>
+                  <td style={{ fontSize: '0.75rem', color: t.reason === 'failed_breakout' ? 'var(--accent-yellow)' : 'var(--text-secondary)' }}>
+                    {t.reason || '—'}
                   </td>
                   <td><span className={`tag ${t.status === 'closed' ? (isWin ? 'tag-ce' : 'tag-pe') : 'tag-strategy'}`}>{t.status?.toUpperCase()}</span></td>
                 </tr>

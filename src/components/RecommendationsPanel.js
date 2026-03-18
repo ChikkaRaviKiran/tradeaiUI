@@ -110,7 +110,7 @@ function RecommendationsPanel({ recommendations, onRecommendationsUpdate }) {
           No recommendations yet. Click "Run Evaluation" to analyze strategies.
         </div>
       ) : (
-        <div className="table-container">
+        <div className="table-container" style={{ maxHeight: 480, overflowY: 'auto' }}>
           <table>
             <thead>
               <tr>
