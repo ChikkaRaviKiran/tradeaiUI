@@ -219,10 +219,39 @@ tr:hover td {
 @media (max-width: 1024px) {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .grid-3 { grid-template-columns: 1fr; }
+  .indicator-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 640px) {
   .grid-4, .grid-2 { grid-template-columns: 1fr; }
+  .indicator-grid { grid-template-columns: 1fr; }
+}
+
+/* Indicator grid for MarketOverview */
+.indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.ind-item {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.ind-label {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.ind-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 /* Section spacing */

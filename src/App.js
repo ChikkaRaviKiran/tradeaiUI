@@ -129,12 +129,26 @@ function LiveDashboard() {
             )}
             {systemStatus.cycle_count > 0 && (
               <div>
-                Cycle #{systemStatus.cycle_count} · Expiry: {systemStatus.expiry || '—'}
+                Cycle #{systemStatus.cycle_count}
+                {systemStatus.expiries && Object.keys(systemStatus.expiries).length > 0 && (
+                  <> · Expiry: {Object.entries(systemStatus.expiries).map(([sym, exp]) => `${sym}: ${exp}`).join(', ')}</>
+                )}
                 {systemStatus.db_connected === false && (
                   <span style={{ color: 'var(--accent-red)', marginLeft: 8 }}>· DB Disconnected</span>
                 )}
               </div>
             )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 2 }}>
+              {systemStatus.paper_trading && (
+                <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: 10, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 600 }}>PAPER</span>
+              )}
+              {systemStatus.capital > 0 && (
+                <span style={{ fontSize: 11 }}>Capital: ₹{systemStatus.capital?.toLocaleString('en-IN')}</span>
+              )}
+              {systemStatus.active_instruments && systemStatus.active_instruments.length > 0 && (
+                <span style={{ fontSize: 11 }}>{systemStatus.active_instruments.join(', ')}</span>
+              )}
+            </div>
           </div>
           <span className={`status-badge ${isRunning ? 'running' : 'stopped'}`}>
             <span className="status-dot" />

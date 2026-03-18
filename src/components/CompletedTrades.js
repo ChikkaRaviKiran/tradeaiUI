@@ -25,6 +25,7 @@ function CompletedTrades({ trades }) {
             <th>SL</th>
             <th>T1</th>
             <th>PnL</th>
+            <th>Exit Reason</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -33,7 +34,7 @@ function CompletedTrades({ trades }) {
             const isWin = (trade.pnl || 0) > 0;
             return (
               <tr key={trade.trade_id}>
-                <td>{trade.time}{trade.exit_time ? ` → ${trade.exit_time}` : ''}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>{trade.time}{trade.exit_time ? ` → ${trade.exit_time}` : ''}</td>
                 <td style={{ fontWeight: 600 }}>{trade.symbol}</td>
                 <td><span className="tag tag-strategy">{trade.strategy}</span></td>
                 <td>
@@ -47,6 +48,9 @@ function CompletedTrades({ trades }) {
                 <td className="positive">{trade.target1?.toFixed(2)}</td>
                 <td className={isWin ? 'positive' : 'negative'} style={{ fontWeight: 600 }}>
                   {isWin ? '+' : ''}{trade.pnl?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                </td>
+                <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {trade.reason || '—'}
                 </td>
                 <td>
                   <span className={`tag ${isWin ? 'tag-ce' : 'tag-pe'}`}>

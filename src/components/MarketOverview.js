@@ -29,14 +29,24 @@ function MarketOverview({ snapshot, globalIndices = [] }) {
     unavailable: 'var(--text-secondary)',
   };
 
+  const ind = snapshot.indicators || {};
+  const opt = snapshot.options_metrics || {};
+  const price = snapshot.nifty_price || snapshot.price || 0;
+
   return (
     <>
+      {/* Row 1: Core metrics */}
       <div className="grid grid-4">
         <div className="card">
-          <div className="card-title">NIFTY Price</div>
-          <div className="stat-value">{(snapshot.nifty_price || snapshot.price || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+          <div className="card-title">
+            NIFTY Price
+            {snapshot.is_expiry_day && (
+              <span style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 600 }}>EXPIRY DAY</span>
+            )}
+          </div>
+          <div className="stat-value">{price.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
           <div className="stat-label">
-            RSI: {snapshot.indicators?.rsi?.toFixed(1) ?? '—'} | ADX: {snapshot.indicators?.adx?.toFixed(1) ?? '—'}
+            RSI: {ind.rsi?.toFixed(1) ?? '—'} | ADX: {ind.adx?.toFixed(1) ?? '—'}
           </div>
         </div>
 
@@ -46,7 +56,7 @@ function MarketOverview({ snapshot, globalIndices = [] }) {
           <div className="stat-label">
             {snapshot.vwap == null ? (
               <span style={{ color: 'var(--text-secondary)' }}>No volume data</span>
-            ) : snapshot.nifty_price > snapshot.vwap ? (
+            ) : price > snapshot.vwap ? (
               <span className="positive">Price above VWAP</span>
             ) : (
               <span className="negative">Price below VWAP</span>
@@ -60,7 +70,7 @@ function MarketOverview({ snapshot, globalIndices = [] }) {
             {snapshot.regime?.replace('_', ' ').toUpperCase()}
           </div>
           <div className="stat-label">
-            PCR: {snapshot.options_metrics?.pcr?.toFixed(2) ?? '—'} | Max Pain: {snapshot.options_metrics?.max_pain?.toLocaleString() ?? '—'}
+            PCR: {opt.pcr?.toFixed(2) ?? '—'} | Max Pain: {opt.max_pain?.toLocaleString() ?? '—'}
           </div>
         </div>
 
@@ -71,6 +81,117 @@ function MarketOverview({ snapshot, globalIndices = [] }) {
           </div>
           <div className="stat-label">
             {globalIndices.filter(i => i.last_price > 0).length} indices tracked
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Technical Indicators + Prev Day Levels */}
+      <div className="grid grid-2" style={{ marginTop: 12 }}>
+        <div className="card" style={{ padding: 14 }}>
+          <div className="card-title" style={{ marginBottom: 8 }}>Technical Indicators</div>
+          <div className="indicator-grid">
+            <div className="ind-item">
+              <span className="ind-label">EMA 9</span>
+              <span className="ind-value">{ind.ema9?.toFixed(1) ?? '—'}</span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">EMA 20</span>
+              <span className="ind-value">{ind.ema20?.toFixed(1) ?? '—'}</span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">EMA 50</span>
+              <span className="ind-value">{ind.ema50?.toFixed(1) ?? '—'}</span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">EMA 200</span>
+              <span className="ind-value" style={{ color: ind.ema200 != null ? (price > ind.ema200 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-secondary)' }}>
+                {ind.ema200?.toFixed(1) ?? '—'}
+              </span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">MACD</span>
+              <span className="ind-value" style={{ color: ind.macd_hist > 0 ? 'var(--accent-green)' : ind.macd_hist < 0 ? 'var(--accent-red)' : undefined }}>
+                {ind.macd?.toFixed(1) ?? '—'}
+              </span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">MACD Hist</span>
+              <span className="ind-value" style={{ color: ind.macd_hist > 0 ? 'var(--accent-green)' : ind.macd_hist < 0 ? 'var(--accent-red)' : undefined }}>
+                {ind.macd_hist?.toFixed(2) ?? '—'}
+              </span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">ATR</span>
+              <span className="ind-value">{ind.atr?.toFixed(1) ?? '—'}</span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">Trend</span>
+              <span className="ind-value" style={{ color: ind.trend_strength >= 2 ? 'var(--accent-green)' : ind.trend_strength <= 1 ? 'var(--accent-red)' : 'var(--accent-yellow)' }}>
+                {ind.trend_strength != null ? `${ind.trend_strength}/3` : '—'}
+              </span>
+            </div>
+          </div>
+          {/* Bollinger Bands inline */}
+          {ind.bollinger_upper != null && (
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+              Bollinger: <span style={{ color: 'var(--accent-red)' }}>{ind.bollinger_lower?.toFixed(0)}</span>
+              {' — '}<span>{ind.bollinger_middle?.toFixed(0)}</span>
+              {' — '}<span style={{ color: 'var(--accent-green)' }}>{ind.bollinger_upper?.toFixed(0)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ padding: 14 }}>
+          <div className="card-title" style={{ marginBottom: 8 }}>Prev Day Levels & OI</div>
+          <div className="indicator-grid">
+            <div className="ind-item">
+              <span className="ind-label">Prev High</span>
+              <span className="ind-value" style={{ color: 'var(--accent-red)' }}>
+                {snapshot.prev_day_high?.toLocaleString('en-IN', { maximumFractionDigits: 1 }) ?? '—'}
+              </span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">Prev Low</span>
+              <span className="ind-value" style={{ color: 'var(--accent-green)' }}>
+                {snapshot.prev_day_low?.toLocaleString('en-IN', { maximumFractionDigits: 1 }) ?? '—'}
+              </span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">Prev Close</span>
+              <span className="ind-value">
+                {snapshot.prev_day_close?.toLocaleString('en-IN', { maximumFractionDigits: 1 }) ?? '—'}
+              </span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">Change</span>
+              <span className="ind-value" style={{ color: snapshot.prev_day_close ? (price >= snapshot.prev_day_close ? 'var(--accent-green)' : 'var(--accent-red)') : undefined }}>
+                {snapshot.prev_day_close ? `${((price - snapshot.prev_day_close) / snapshot.prev_day_close * 100).toFixed(2)}%` : '—'}
+              </span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">CE OI Cluster</span>
+              <span className="ind-value" style={{ color: 'var(--accent-red)' }}>
+                {opt.call_oi_cluster?.toLocaleString() ?? '—'}
+              </span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">PE OI Cluster</span>
+              <span className="ind-value" style={{ color: 'var(--accent-green)' }}>
+                {opt.put_oi_cluster?.toLocaleString() ?? '—'}
+              </span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">OI Change</span>
+              <span className="ind-value" style={{ color: opt.oi_change > 0 ? 'var(--accent-green)' : opt.oi_change < 0 ? 'var(--accent-red)' : undefined }}>
+                {opt.oi_change != null ? (opt.oi_change > 0 ? '+' : '') + opt.oi_change.toLocaleString() : '—'}
+              </span>
+            </div>
+            <div className="ind-item">
+              <span className="ind-label">ATM Volume</span>
+              <span className="ind-value">
+                {opt.atm_option_volume?.toLocaleString() ?? '—'}
+              </span>
+            </div>
           </div>
         </div>
       </div>

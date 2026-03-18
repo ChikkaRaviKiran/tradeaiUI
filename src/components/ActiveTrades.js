@@ -16,6 +16,7 @@ function ActiveTrades({ trades }) {
       <table>
         <thead>
           <tr>
+            <th>Time</th>
             <th>Symbol</th>
             <th>Strategy</th>
             <th>Type</th>
@@ -23,12 +24,14 @@ function ActiveTrades({ trades }) {
             <th>Stoploss</th>
             <th>Target 1</th>
             <th>Target 2</th>
-            <th>Confidence</th>
+            <th>Score</th>
+            <th>Reason</th>
           </tr>
         </thead>
         <tbody>
           {trades.map((trade) => (
             <tr key={trade.trade_id}>
+              <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{trade.time || '—'}</td>
               <td style={{ fontWeight: 600 }}>{trade.symbol}</td>
               <td><span className="tag tag-strategy">{trade.strategy}</span></td>
               <td>
@@ -40,7 +43,17 @@ function ActiveTrades({ trades }) {
               <td className="negative">{trade.stoploss?.toFixed(2)}</td>
               <td className="positive">{trade.target1?.toFixed(2)}</td>
               <td className="positive">{trade.target2?.toFixed(2)}</td>
-              <td>{trade.confidence?.toFixed(0)}%</td>
+              <td>
+                <span style={{
+                  padding: '2px 6px', borderRadius: 4, fontSize: '0.8rem', fontWeight: 600,
+                  background: trade.confidence >= 70 ? 'rgba(34,197,94,0.15)' : trade.confidence >= 50 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                  color: trade.confidence >= 70 ? 'var(--accent-green)' : trade.confidence >= 50 ? 'var(--accent-yellow)' : 'var(--accent-red)',
+                }}>{trade.confidence?.toFixed(0)}%</span>
+              </td>
+              <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                title={trade.reason || ''}>
+                {trade.reason || '—'}
+              </td>
             </tr>
           ))}
         </tbody>

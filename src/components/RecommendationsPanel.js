@@ -123,6 +123,7 @@ function RecommendationsPanel({ recommendations, onRecommendationsUpdate }) {
                 <th>Sharpe</th>
                 <th>Avg PnL</th>
                 <th>Total PnL</th>
+                <th>Max DD</th>
                 <th>Trades</th>
                 <th>Regime</th>
               </tr>
@@ -164,6 +165,9 @@ function RecommendationsPanel({ recommendations, onRecommendationsUpdate }) {
                   </td>
                   <td style={{ color: pnlColor(r.total_pnl), fontWeight: 600 }}>
                     ₹{r.total_pnl.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </td>
+                  <td style={{ color: 'var(--accent-red)' }}>
+                    {r.max_drawdown != null ? `₹${Math.abs(r.max_drawdown).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '—'}
                   </td>
                   <td>{r.total_trades}</td>
                   <td>
