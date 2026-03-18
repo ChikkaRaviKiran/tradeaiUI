@@ -34,7 +34,7 @@ function MarketOverview({ snapshot, globalIndices = [] }) {
       <div className="grid grid-4">
         <div className="card">
           <div className="card-title">NIFTY Price</div>
-          <div className="stat-value">{snapshot.nifty_price?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+          <div className="stat-value">{(snapshot.nifty_price || snapshot.price || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
           <div className="stat-label">
             RSI: {snapshot.indicators?.rsi?.toFixed(1) ?? '—'} | ADX: {snapshot.indicators?.adx?.toFixed(1) ?? '—'}
           </div>

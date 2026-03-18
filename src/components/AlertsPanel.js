@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { fetchAlerts } from '../api';
 
 const TYPE_CONFIG = {
   signal: { emoji: '🔔', color: 'var(--accent-blue)', label: 'SIGNAL' },
@@ -7,19 +8,81 @@ const TYPE_CONFIG = {
   info:   { emoji: 'ℹ️', color: 'var(--text-secondary)', label: 'INFO' },
 };
 
-function AlertsPanel({ alerts }) {
+function AlertsPanel({ alerts: defaultAlerts }) {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [filteredAlerts, setFilteredAlerts] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // Use filtered alerts if a non-today date was explicitly selected, otherwise use live alerts
+  const alerts = filteredAlerts !== null ? filteredAlerts : defaultAlerts;
+
+  const handleDateChange = async (e) => {
+    const date = e.target.value;
+    setSelectedDate(date);
+
+    if (date === todayStr) {
+      // Reset to live alerts
+      setFilteredAlerts(null);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetchAlerts(200, date);
+      setFilteredAlerts(res.data || []);
+    } catch {
+      setFilteredAlerts([]);
+    }
+    setLoading(false);
+  };
   if (!alerts || alerts.length === 0) {
     return (
-      <div className="card">
-        <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: 20 }}>
-          No alerts yet — signals will appear here during market hours
-        </p>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            {selectedDate === todayStr ? 'Today' : selectedDate}
+          </span>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={handleDateChange}
+            max={todayStr}
+            style={{
+              background: 'var(--bg-primary)', color: 'var(--text-primary)',
+              border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px',
+              fontSize: '0.75rem', cursor: 'pointer',
+            }}
+          />
+        </div>
+        <div className="card">
+          <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: 20 }}>
+            {loading ? 'Loading...' : `No alerts for ${selectedDate === todayStr ? 'today' : selectedDate}`}
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="card" style={{ maxHeight: 420, overflowY: 'auto' }}>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          {selectedDate === todayStr ? 'Today' : selectedDate} &middot; {alerts.length} alert{alerts.length !== 1 ? 's' : ''}
+        </span>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={handleDateChange}
+          max={todayStr}
+          style={{
+            background: 'var(--bg-primary)', color: 'var(--text-primary)',
+            border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px',
+            fontSize: '0.75rem', cursor: 'pointer',
+          }}
+        />
+      </div>
+      <div className="card" style={{ maxHeight: 420, overflowY: 'auto' }}>
       {alerts.map((alert) => {
         const cfg = TYPE_CONFIG[alert.alert_type] || TYPE_CONFIG.info;
         const isWin = alert.pnl != null && alert.pnl > 0;
@@ -78,6 +141,7 @@ function AlertsPanel({ alerts }) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

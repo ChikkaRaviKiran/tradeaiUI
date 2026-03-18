@@ -11,6 +11,24 @@ function RecommendationsPanel({ recommendations, onRecommendationsUpdate }) {
   const runTime = data.run_time_seconds;
   const totalSim = data.total_simulated_trades;
 
+  // Auto-trigger evaluation if no data exists or data is stale (>24h)
+  useEffect(() => {
+    const evalDate = data.eval_date;
+    if (running) return;
+    if (!evalDate) {
+      // No evaluation at all — auto-trigger
+      handleRunEval();
+      return;
+    }
+    // Check if stale (older than yesterday)
+    const evalTime = new Date(evalDate).getTime();
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    if (evalTime < oneDayAgo) {
+      handleRunEval();
+    }
+    // eslint-disable-next-line
+  }, []);
+
   // Clean up polling on unmount
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };

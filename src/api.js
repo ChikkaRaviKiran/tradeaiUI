@@ -14,7 +14,11 @@ export const fetchTodayTrades = () => api.get('/api/trades/today');
 export const fetchTradeHistory = (limit = 100) => api.get(`/api/trades/history?limit=${encodeURIComponent(limit)}`);
 export const fetchPerformance = () => api.get('/api/performance');
 export const fetchTodayPerformance = () => api.get('/api/performance/today');
-export const fetchAlerts = (limit = 50) => api.get(`/api/alerts?limit=${encodeURIComponent(limit)}`);
+export const fetchAlerts = (limit = 50, date = null) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (date) params.set('target_date', date);
+  return api.get(`/api/alerts?${params.toString()}`);
+};
 export const fetchSystemStatus = () => api.get('/api/system/status');
 export const startSystem = () => api.post('/api/system/start');
 export const stopSystem = () => api.post('/api/system/stop');
