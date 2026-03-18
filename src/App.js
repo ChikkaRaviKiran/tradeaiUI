@@ -9,6 +9,8 @@ import {
   fetchAlerts,
   fetchSystemStatus,
   fetchRecommendations,
+  fetchIntelligence,
+  refreshIntelligence,
   startSystem,
   stopSystem,
 } from './api';
@@ -18,6 +20,7 @@ import CompletedTrades from './components/CompletedTrades';
 import PerformancePanel from './components/PerformancePanel';
 import AlertsPanel from './components/AlertsPanel';
 import RecommendationsPanel from './components/RecommendationsPanel';
+import MarketIntelligence from './components/MarketIntelligence';
 import HistoryDashboard from './components/HistoryDashboard';
 
 const REFRESH_INTERVAL = 15000; // 15 seconds
@@ -40,12 +43,13 @@ function LiveDashboard() {
   const [alerts, setAlerts] = useState([]);
   const [systemStatus, setSystemStatus] = useState({ status: 'stopped' });
   const [recommendations, setRecommendations] = useState(null);
+  const [intelligence, setIntelligence] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes, recsRes] = await Promise.allSettled([
+      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes, recsRes, intelRes] = await Promise.allSettled([
         fetchMarketSnapshot(),
         fetchActiveTrades(),
         fetchTodayTrades(),
@@ -54,6 +58,7 @@ function LiveDashboard() {
         fetchSystemStatus(),
         fetchGlobalIndices(),
         fetchRecommendations(),
+        fetchIntelligence(),
       ]);
 
       if (snapRes.status === 'fulfilled') setSnapshot(snapRes.value.data);
@@ -64,6 +69,7 @@ function LiveDashboard() {
       if (statusRes.status === 'fulfilled') setSystemStatus(statusRes.value.data);
       if (globalRes.status === 'fulfilled') setGlobalIndices(globalRes.value.data);
       if (recsRes.status === 'fulfilled') setRecommendations(recsRes.value.data);
+      if (intelRes.status === 'fulfilled') setIntelligence(intelRes.value.data);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -88,6 +94,19 @@ function LiveDashboard() {
     try {
       await stopSystem();
       setSystemStatus((s) => ({ ...s, status: 'stopped' }));
+    } catch {}
+  };
+
+  const handleRefreshIntelligence = async () => {
+    try {
+      await refreshIntelligence();
+      // Reload after a short delay
+      setTimeout(async () => {
+        try {
+          const res = await fetchIntelligence();
+          setIntelligence(res.data);
+        } catch {}
+      }, 5000);
     } catch {}
   };
 
@@ -138,6 +157,12 @@ function LiveDashboard() {
       {/* Market Overview */}
       <section className="section">
         <MarketOverview snapshot={snapshot} globalIndices={globalIndices} />
+      </section>
+
+      {/* Market Intelligence — AI Pre-Market Analysis */}
+      <section className="section">
+        <h2 className="section-title">Market Intelligence</h2>
+        <MarketIntelligence intelligence={intelligence} onRefresh={handleRefreshIntelligence} />
       </section>
 
       {/* Performance Metrics */}

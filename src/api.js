@@ -36,4 +36,10 @@ export const triggerEvaluation = () => api.post('/api/evaluate/run');
 export const fetchEvalStatus = () => api.get('/api/evaluate/status');
 export const fetchEvaluationHistory = (date) => api.get(`/api/evaluate/history/${encodeURIComponent(date)}`);
 
+// Market Intelligence
+export const fetchIntelligence = () => api.get('/api/intelligence');
+export const fetchIntelligenceNews = (days = 1) => api.get(`/api/intelligence/news?days=${encodeURIComponent(days)}`);
+export const fetchIntelligenceHistory = (limit = 7) => api.get(`/api/intelligence/history?limit=${encodeURIComponent(limit)}`);
+export const refreshIntelligence = () => api.post('/api/intelligence/refresh');
+
 export default api;
