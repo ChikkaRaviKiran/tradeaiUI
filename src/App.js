@@ -9,6 +9,7 @@ import {
   fetchPerformance,
   fetchAlerts,
   fetchSystemStatus,
+  fetchSystemActivity,
   fetchRecommendations,
   fetchIntelligence,
   refreshIntelligence,
@@ -23,6 +24,7 @@ import PerformancePanel from './components/PerformancePanel';
 import AlertsPanel from './components/AlertsPanel';
 import RecommendationsPanel from './components/RecommendationsPanel';
 import MarketIntelligence from './components/MarketIntelligence';
+import SystemActivityLog from './components/SystemActivityLog';
 import HistoryDashboard from './components/HistoryDashboard';
 
 const REFRESH_INTERVAL = 15000; // 15 seconds
@@ -47,12 +49,13 @@ function LiveDashboard() {
   const [systemStatus, setSystemStatus] = useState({ status: 'stopped' });
   const [recommendations, setRecommendations] = useState(null);
   const [intelligence, setIntelligence] = useState(null);
+  const [activity, setActivity] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes, recsRes, intelRes, allSnapsRes] = await Promise.allSettled([
+      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes, recsRes, intelRes, allSnapsRes, activityRes] = await Promise.allSettled([
         fetchMarketSnapshot(),
         fetchActiveTrades(),
         fetchTodayTrades(),
@@ -63,6 +66,7 @@ function LiveDashboard() {
         fetchRecommendations(),
         fetchIntelligence(),
         fetchAllSnapshots(),
+        fetchSystemActivity(),
       ]);
 
       if (snapRes.status === 'fulfilled') setSnapshot(snapRes.value.data);
@@ -75,6 +79,7 @@ function LiveDashboard() {
       if (globalRes.status === 'fulfilled') setGlobalIndices(globalRes.value.data);
       if (recsRes.status === 'fulfilled') setRecommendations(recsRes.value.data);
       if (intelRes.status === 'fulfilled') setIntelligence(intelRes.value.data);
+      if (activityRes.status === 'fulfilled') setActivity(activityRes.value.data);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -200,6 +205,11 @@ function LiveDashboard() {
       <section className="section">
         <h2 className="section-title">Market Intelligence</h2>
         <MarketIntelligence intelligence={intelligence} onRefresh={handleRefreshIntelligence} />
+      </section>
+
+      {/* System Pipeline Monitor — Every Step Visible */}
+      <section className="section">
+        <SystemActivityLog activity={activity} />
       </section>
 
       {/* Performance Metrics */}

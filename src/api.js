@@ -21,6 +21,7 @@ export const fetchAlerts = (limit = 50, date = null) => {
   return api.get(`/api/alerts?${params.toString()}`);
 };
 export const fetchSystemStatus = () => api.get('/api/system/status');
+export const fetchSystemActivity = () => api.get('/api/system/activity');
 export const startSystem = () => api.post('/api/system/start');
 export const stopSystem = () => api.post('/api/system/stop');
 export const setTradingMode = (mode) => api.post('/api/system/trading-mode', { mode });
