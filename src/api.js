@@ -8,6 +8,7 @@ const api = axios.create({
 });
 
 export const fetchMarketSnapshot = () => api.get('/api/market/snapshot');
+export const fetchAllSnapshots = () => api.get('/api/market/snapshots');
 export const fetchGlobalIndices = () => api.get('/api/market/global-indices');
 export const fetchActiveTrades = () => api.get('/api/trades/active');
 export const fetchTodayTrades = () => api.get('/api/trades/today');
@@ -22,6 +23,7 @@ export const fetchAlerts = (limit = 50, date = null) => {
 export const fetchSystemStatus = () => api.get('/api/system/status');
 export const startSystem = () => api.post('/api/system/start');
 export const stopSystem = () => api.post('/api/system/stop');
+export const setTradingMode = (mode) => api.post('/api/system/trading-mode', { mode });
 
 // History APIs
 export const fetchCalendarData = (year, month) => api.get(`/api/history/calendar/${encodeURIComponent(year)}/${encodeURIComponent(month)}`);

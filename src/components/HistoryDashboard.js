@@ -262,6 +262,69 @@ function DayView({ date, data, loading, onBack, onPrevDay, onNextDay }) {
 /* ─── Sub-components ────────────────────────────────────────────────── */
 
 function DaySummaryCards({ summary }) {
+  const instrumentColors = { NIFTY: '#6366f1', BANKNIFTY: '#f59e0b', FINNIFTY: '#22d3ee' };
+  const instruments = summary.instruments || {};
+  const instNames = Object.keys(instruments).sort();
+
+  // If we have per-instrument data, show it
+  if (instNames.length > 0) {
+    return (
+      <section className="section">
+        <h2 className="section-title">Day Summary</h2>
+        <div className="grid grid-3">
+          {instNames.map(inst => {
+            const d = instruments[inst];
+            const change = d.close_price - d.open_price;
+            const changePct = d.open_price ? ((change / d.open_price) * 100) : 0;
+            const isUp = change >= 0;
+            return (
+              <div className="card" key={inst} style={{ padding: 14 }}>
+                <div className="card-title" style={{ marginBottom: 8, color: instrumentColors[inst] || 'var(--text-secondary)' }}>{inst}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Open</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{d.open_price?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Close</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: isUp ? 'var(--accent-green)' : 'var(--accent-red)' }}>{d.close_price?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>High</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--accent-green)' }}>{d.high?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Low</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--accent-red)' }}>{d.low?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Change</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: isUp ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                      {isUp ? '+' : ''}{changePct.toFixed(2)}%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Snapshots</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{d.snapshots}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Avg RSI</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{d.avg_rsi}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>PCR</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{d.last_pcr?.toFixed(2) ?? '—'}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
+
+  // Fallback: old single-instrument summary
   const change = summary.close_price - summary.open_price;
   const changePct = summary.open_price ? ((change / summary.open_price) * 100) : 0;
   const isUp = change >= 0;
@@ -316,19 +379,54 @@ function PerformanceSection({ perf, trades }) {
 }
 
 function SnapshotTimeline({ snapshots }) {
+  const [instrumentFilter, setInstrumentFilter] = React.useState('ALL');
+
+  // Discover unique instruments in the data
+  const instruments = React.useMemo(() => {
+    const set = new Set(snapshots.map(s => s.instrument || 'NIFTY'));
+    return ['ALL', ...Array.from(set).sort()];
+  }, [snapshots]);
+
+  // Filter snapshots by selected instrument
+  const filteredSnapshots = React.useMemo(() => {
+    if (instrumentFilter === 'ALL') return snapshots;
+    return snapshots.filter(s => (s.instrument || 'NIFTY') === instrumentFilter);
+  }, [snapshots, instrumentFilter]);
+
   // Show every Nth snapshot to keep the table manageable
-  const step = snapshots.length > 60 ? Math.ceil(snapshots.length / 60) : 1;
-  const filtered = snapshots.filter((_, i) => i % step === 0 || i === snapshots.length - 1);
+  const step = filteredSnapshots.length > 60 ? Math.ceil(filteredSnapshots.length / 60) : 1;
+  const visible = filteredSnapshots.filter((_, i) => i % step === 0 || i === filteredSnapshots.length - 1);
+
+  const instrumentColors = { NIFTY: '#6366f1', BANKNIFTY: '#f59e0b', FINNIFTY: '#22d3ee' };
 
   return (
     <section className="section">
-      <h2 className="section-title">Market Timeline ({snapshots.length} snapshots)</h2>
-      <div className="card table-container" style={{ maxHeight: 400, overflowY: 'auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <h2 className="section-title" style={{ margin: 0 }}>Market Timeline ({filteredSnapshots.length} snapshots)</h2>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {instruments.map(inst => (
+            <button key={inst} onClick={() => setInstrumentFilter(inst)}
+              style={{
+                padding: '4px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                fontSize: '0.75rem', fontWeight: 600,
+                background: instrumentFilter === inst
+                  ? (inst === 'ALL' ? 'var(--accent-blue)' : instrumentColors[inst] || 'var(--accent-blue)')
+                  : 'var(--bg-secondary)',
+                color: instrumentFilter === inst ? '#fff' : 'var(--text-secondary)',
+                opacity: instrumentFilter === inst ? 1 : 0.7,
+              }}>
+              {inst}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="card table-container" style={{ maxHeight: 400, overflowY: 'auto', marginTop: 8 }}>
         <table>
           <thead>
             <tr>
               <th>Time</th>
-              <th>NIFTY</th>
+              {instrumentFilter === 'ALL' && <th>Instrument</th>}
+              <th>Price</th>
               <th>RSI</th>
               <th>ADX</th>
               <th>MACD</th>
@@ -341,7 +439,7 @@ function SnapshotTimeline({ snapshots }) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((s, i) => {
+            {visible.map((s, i) => {
               const regimeColor = {
                 trending: 'var(--accent-green)',
                 range_bound: 'var(--accent-yellow)',
@@ -350,10 +448,16 @@ function SnapshotTimeline({ snapshots }) {
                 insufficient_data: 'var(--text-secondary)',
               }[s.regime] || 'var(--text-primary)';
 
+              const inst = s.instrument || 'NIFTY';
+              const instColor = instrumentColors[inst] || 'var(--text-primary)';
+
               return (
                 <tr key={i}>
                   <td style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{s.time}</td>
-                  <td style={{ fontWeight: 600 }}>{s.nifty_price?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                  {instrumentFilter === 'ALL' && (
+                    <td style={{ fontWeight: 600, fontSize: '0.75rem', color: instColor }}>{inst}</td>
+                  )}
+                  <td style={{ fontWeight: 600 }}>{(s.price || s.nifty_price)?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
                   <td>{s.rsi?.toFixed(1) ?? '—'}</td>
                   <td>{s.adx?.toFixed(1) ?? '—'}</td>
                   <td>{s.macd?.toFixed(2) ?? '—'}</td>
@@ -407,7 +511,7 @@ function TradesSection({ trades }) {
               <th>SL</th>
               <th>T1</th>
               <th>PnL</th>
-              <th>Exit</th>
+              <th>Exit Reason</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -416,7 +520,7 @@ function TradesSection({ trades }) {
               const isWin = (t.pnl || 0) > 0;
               return (
                 <tr key={t.trade_id}>
-                  <td>{t.time}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{t.time}{t.exit_time ? ` → ${t.exit_time}` : ''}</td>
                   <td style={{ fontWeight: 600 }}>{t.symbol}</td>
                   <td><span className="tag tag-strategy">{t.strategy}</span></td>
                   <td><span className={`tag ${t.option_type === 'CE' ? 'tag-ce' : 'tag-pe'}`}>{t.option_type}</span></td>

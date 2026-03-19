@@ -1,205 +1,188 @@
 import React from 'react';
 
-function MarketOverview({ snapshot, globalIndices = [] }) {
-  if (!snapshot) {
+const INSTRUMENTS = ['NIFTY', 'BANKNIFTY', 'FINNIFTY'];
+
+const regimeColors = {
+  trending: 'var(--accent-green)',
+  range_bound: 'var(--accent-yellow)',
+  high_volatility: 'var(--accent-red)',
+  low_volatility: 'var(--accent-blue)',
+  insufficient_data: 'var(--text-secondary)',
+};
+
+const biasColors = {
+  bullish: 'var(--accent-green)',
+  bearish: 'var(--accent-red)',
+  neutral: 'var(--accent-yellow)',
+  unavailable: 'var(--text-secondary)',
+};
+
+function InstrumentCard({ snap, name }) {
+  if (!snap) {
     return (
-      <div className="grid grid-4">
-        {['NIFTY Price', 'VWAP', 'Market Regime', 'Global Bias'].map((label) => (
-          <div className="card" key={label}>
-            <div className="card-title">{label}</div>
-            <div className="stat-value" style={{ color: 'var(--text-secondary)' }}>—</div>
-          </div>
-        ))}
+      <div className="card" style={{ opacity: 0.5 }}>
+        <div className="card-title">{name}</div>
+        <div className="stat-value" style={{ color: 'var(--text-secondary)', fontSize: '1.4rem' }}>Waiting...</div>
       </div>
     );
   }
 
-  const regimeColors = {
-    trending: 'var(--accent-green)',
-    range_bound: 'var(--accent-yellow)',
-    high_volatility: 'var(--accent-red)',
-    low_volatility: 'var(--accent-blue)',
-    insufficient_data: 'var(--text-secondary)',
-  };
-
-  const biasColors = {
-    bullish: 'var(--accent-green)',
-    bearish: 'var(--accent-red)',
-    neutral: 'var(--accent-yellow)',
-    unavailable: 'var(--text-secondary)',
-  };
-
-  const ind = snapshot.indicators || {};
-  const opt = snapshot.options_metrics || {};
-  const price = snapshot.nifty_price || snapshot.price || 0;
+  const ind = snap.indicators || {};
+  const opt = snap.options_metrics || {};
+  const price = snap.price || snap.nifty_price || 0;
+  const prevClose = snap.prev_day_close;
+  const changePct = prevClose ? ((price - prevClose) / prevClose * 100) : null;
+  const isUp = changePct >= 0;
 
   return (
-    <>
-      {/* Row 1: Core metrics */}
-      <div className="grid grid-4">
-        <div className="card">
-          <div className="card-title">
-            NIFTY Price
-            {snapshot.is_expiry_day && (
-              <span style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 600 }}>EXPIRY DAY</span>
+    <div className="card" style={{ padding: 16 }}>
+      {/* Header: Name + Price */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+        <div>
+          <div className="card-title" style={{ marginBottom: 2 }}>
+            {snap.instrument || name}
+            {snap.is_expiry_day && (
+              <span style={{ marginLeft: 6, fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 600 }}>EXPIRY</span>
             )}
           </div>
-          <div className="stat-value">{price.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
-          <div className="stat-label">
-            RSI: {ind.rsi?.toFixed(1) ?? '—'} | ADX: {ind.adx?.toFixed(1) ?? '—'}
+          <div style={{ fontSize: '1.6rem', fontWeight: 700 }}>
+            {price.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
           </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">VWAP</div>
-          <div className="stat-value">{snapshot.vwap?.toLocaleString('en-IN', { maximumFractionDigits: 2 }) ?? '—'}</div>
-          <div className="stat-label">
-            {snapshot.vwap == null ? (
-              <span style={{ color: 'var(--text-secondary)' }}>No volume data</span>
-            ) : price > snapshot.vwap ? (
-              <span className="positive">Price above VWAP</span>
-            ) : (
-              <span className="negative">Price below VWAP</span>
-            )}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">Market Regime</div>
-          <div className="stat-value" style={{ color: regimeColors[snapshot.regime] || 'var(--text-primary)', fontSize: '1.3rem' }}>
-            {snapshot.regime?.replace('_', ' ').toUpperCase()}
-          </div>
-          <div className="stat-label">
-            PCR: {opt.pcr?.toFixed(2) ?? '—'} | Max Pain: {opt.max_pain?.toLocaleString() ?? '—'}
-            {snapshot.htf_trend && snapshot.htf_trend !== 'neutral' && (
-              <span style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 600,
-                background: snapshot.htf_trend === 'bullish' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-                color: snapshot.htf_trend === 'bullish' ? 'var(--accent-green)' : 'var(--accent-red)',
-              }}>5m {snapshot.htf_trend.toUpperCase()}</span>
-            )}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">Global Bias</div>
-          <div className="stat-value" style={{ color: biasColors[snapshot.global_bias] || 'var(--text-primary)', fontSize: '1.3rem' }}>
-            {snapshot.global_bias?.toUpperCase()}
-          </div>
-          <div className="stat-label">
-            {globalIndices.filter(i => i.last_price > 0).length} indices tracked
-          </div>
-        </div>
-      </div>
-
-      {/* Row 2: Technical Indicators + Prev Day Levels */}
-      <div className="grid grid-2" style={{ marginTop: 12 }}>
-        <div className="card" style={{ padding: 14 }}>
-          <div className="card-title" style={{ marginBottom: 8 }}>Technical Indicators</div>
-          <div className="indicator-grid">
-            <div className="ind-item">
-              <span className="ind-label">EMA 9</span>
-              <span className="ind-value">{ind.ema9?.toFixed(1) ?? '—'}</span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">EMA 20</span>
-              <span className="ind-value">{ind.ema20?.toFixed(1) ?? '—'}</span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">EMA 50</span>
-              <span className="ind-value">{ind.ema50?.toFixed(1) ?? '—'}</span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">EMA 200</span>
-              <span className="ind-value" style={{ color: ind.ema200 != null ? (price > ind.ema200 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-secondary)' }}>
-                {ind.ema200?.toFixed(1) ?? '—'}
+          {changePct != null && (
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: isUp ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+              {isUp ? '+' : ''}{changePct.toFixed(2)}%
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 400, marginLeft: 6 }}>
+                from {prevClose?.toLocaleString('en-IN', { maximumFractionDigits: 1 })}
               </span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">MACD</span>
-              <span className="ind-value" style={{ color: ind.macd_hist > 0 ? 'var(--accent-green)' : ind.macd_hist < 0 ? 'var(--accent-red)' : undefined }}>
-                {ind.macd?.toFixed(1) ?? '—'}
-              </span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">MACD Hist</span>
-              <span className="ind-value" style={{ color: ind.macd_hist > 0 ? 'var(--accent-green)' : ind.macd_hist < 0 ? 'var(--accent-red)' : undefined }}>
-                {ind.macd_hist?.toFixed(2) ?? '—'}
-              </span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">ATR</span>
-              <span className="ind-value">{ind.atr?.toFixed(1) ?? '—'}</span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">Trend</span>
-              <span className="ind-value" style={{ color: ind.trend_strength >= 2 ? 'var(--accent-green)' : ind.trend_strength <= 1 ? 'var(--accent-red)' : 'var(--accent-yellow)' }}>
-                {ind.trend_strength != null ? `${ind.trend_strength}/3` : '—'}
-              </span>
-            </div>
-          </div>
-          {/* Bollinger Bands inline */}
-          {ind.bollinger_upper != null && (
-            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
-              Bollinger: <span style={{ color: 'var(--accent-red)' }}>{ind.bollinger_lower?.toFixed(0)}</span>
-              {' — '}<span>{ind.bollinger_middle?.toFixed(0)}</span>
-              {' — '}<span style={{ color: 'var(--accent-green)' }}>{ind.bollinger_upper?.toFixed(0)}</span>
             </div>
           )}
         </div>
+        {/* Regime badge */}
+        <div style={{ textAlign: 'right' }}>
+          <div style={{
+            fontSize: '0.7rem', fontWeight: 600, padding: '3px 8px', borderRadius: 4,
+            color: regimeColors[snap.regime] || 'var(--text-primary)',
+            background: snap.regime === 'trending' ? 'rgba(34,197,94,0.1)' :
+                        snap.regime === 'high_volatility' ? 'rgba(239,68,68,0.1)' :
+                        snap.regime === 'range_bound' ? 'rgba(245,158,11,0.1)' :
+                        snap.regime === 'low_volatility' ? 'rgba(41,121,255,0.1)' : 'transparent',
+          }}>
+            {snap.regime?.replace('_', ' ').toUpperCase() || '—'}
+          </div>
+          {snap.htf_trend && snap.htf_trend !== 'neutral' && (
+            <div style={{
+              marginTop: 4, fontSize: 9, padding: '2px 6px', borderRadius: 3, fontWeight: 600,
+              background: snap.htf_trend === 'bullish' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+              color: snap.htf_trend === 'bullish' ? 'var(--accent-green)' : 'var(--accent-red)',
+            }}>5m {snap.htf_trend.toUpperCase()}</div>
+          )}
+        </div>
+      </div>
 
-        <div className="card" style={{ padding: 14 }}>
-          <div className="card-title" style={{ marginBottom: 8 }}>Prev Day Levels & OI</div>
-          <div className="indicator-grid">
-            <div className="ind-item">
-              <span className="ind-label">Prev High</span>
-              <span className="ind-value" style={{ color: 'var(--accent-red)' }}>
-                {snapshot.prev_day_high?.toLocaleString('en-IN', { maximumFractionDigits: 1 }) ?? '—'}
-              </span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">Prev Low</span>
-              <span className="ind-value" style={{ color: 'var(--accent-green)' }}>
-                {snapshot.prev_day_low?.toLocaleString('en-IN', { maximumFractionDigits: 1 }) ?? '—'}
-              </span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">Prev Close</span>
-              <span className="ind-value">
-                {snapshot.prev_day_close?.toLocaleString('en-IN', { maximumFractionDigits: 1 }) ?? '—'}
-              </span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">Change</span>
-              <span className="ind-value" style={{ color: snapshot.prev_day_close ? (price >= snapshot.prev_day_close ? 'var(--accent-green)' : 'var(--accent-red)') : undefined }}>
-                {snapshot.prev_day_close ? `${((price - snapshot.prev_day_close) / snapshot.prev_day_close * 100).toFixed(2)}%` : '—'}
-              </span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">CE OI Cluster</span>
-              <span className="ind-value" style={{ color: 'var(--accent-red)' }}>
-                {opt.call_oi_cluster?.toLocaleString() ?? '—'}
-              </span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">PE OI Cluster</span>
-              <span className="ind-value" style={{ color: 'var(--accent-green)' }}>
-                {opt.put_oi_cluster?.toLocaleString() ?? '—'}
-              </span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">OI Change</span>
-              <span className="ind-value" style={{ color: opt.oi_change > 0 ? 'var(--accent-green)' : opt.oi_change < 0 ? 'var(--accent-red)' : undefined }}>
-                {opt.oi_change != null ? (opt.oi_change > 0 ? '+' : '') + opt.oi_change.toLocaleString() : '—'}
-              </span>
-            </div>
-            <div className="ind-item">
-              <span className="ind-label">ATM Volume</span>
-              <span className="ind-value">
-                {opt.atm_option_volume?.toLocaleString() ?? '—'}
-              </span>
-            </div>
+      {/* Key Indicators Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
+        <MiniStat label="RSI" value={ind.rsi?.toFixed(1)} color={ind.rsi > 70 ? 'var(--accent-red)' : ind.rsi < 30 ? 'var(--accent-green)' : null} />
+        <MiniStat label="ADX" value={ind.adx?.toFixed(1)} color={ind.adx > 25 ? 'var(--accent-green)' : 'var(--text-secondary)'} />
+        <MiniStat label="VWAP" value={snap.vwap?.toFixed(1)} color={price > snap.vwap ? 'var(--accent-green)' : 'var(--accent-red)'} />
+        <MiniStat label="ATR" value={ind.atr?.toFixed(1)} />
+      </div>
+
+      {/* EMAs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
+        <MiniStat label="EMA 9" value={ind.ema9?.toFixed(1)} />
+        <MiniStat label="EMA 20" value={ind.ema20?.toFixed(1)} />
+        <MiniStat label="EMA 50" value={ind.ema50?.toFixed(1)} />
+        <MiniStat label="EMA 200" value={ind.ema200?.toFixed(1)}
+          color={ind.ema200 != null ? (price > ind.ema200 ? 'var(--accent-green)' : 'var(--accent-red)') : null} />
+      </div>
+
+      {/* MACD + Trend */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
+        <MiniStat label="MACD" value={ind.macd?.toFixed(1)}
+          color={ind.macd_hist > 0 ? 'var(--accent-green)' : ind.macd_hist < 0 ? 'var(--accent-red)' : null} />
+        <MiniStat label="MACD Hist" value={ind.macd_hist?.toFixed(2)}
+          color={ind.macd_hist > 0 ? 'var(--accent-green)' : ind.macd_hist < 0 ? 'var(--accent-red)' : null} />
+        <MiniStat label="Trend" value={ind.trend_strength != null ? `${ind.trend_strength}/3` : null}
+          color={ind.trend_strength >= 2 ? 'var(--accent-green)' : ind.trend_strength <= 1 ? 'var(--accent-red)' : 'var(--accent-yellow)'} />
+        <MiniStat label="PCR" value={opt.pcr?.toFixed(2)}
+          color={opt.pcr > 1.2 ? 'var(--accent-green)' : opt.pcr < 0.7 ? 'var(--accent-red)' : null} />
+      </div>
+
+      {/* Prev Day Levels */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
+        <MiniStat label="Prev High" value={snap.prev_day_high?.toFixed(1)} color="var(--accent-red)" />
+        <MiniStat label="Prev Low" value={snap.prev_day_low?.toFixed(1)} color="var(--accent-green)" />
+        <MiniStat label="Max Pain" value={opt.max_pain?.toLocaleString()} />
+      </div>
+
+      {/* OI Data */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+        <MiniStat label="CE OI" value={opt.call_oi_cluster?.toLocaleString()} color="var(--accent-red)" />
+        <MiniStat label="PE OI" value={opt.put_oi_cluster?.toLocaleString()} color="var(--accent-green)" />
+        <MiniStat label="OI Change" value={opt.oi_change != null ? (opt.oi_change > 0 ? '+' : '') + opt.oi_change.toLocaleString() : null}
+          color={opt.oi_change > 0 ? 'var(--accent-green)' : opt.oi_change < 0 ? 'var(--accent-red)' : null} />
+      </div>
+
+      {/* Bollinger inline */}
+      {ind.bollinger_upper != null && (
+        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center' }}>
+          BB: <span style={{ color: 'var(--accent-red)' }}>{ind.bollinger_lower?.toFixed(0)}</span>
+          {' — '}<span>{ind.bollinger_middle?.toFixed(0)}</span>
+          {' — '}<span style={{ color: 'var(--accent-green)' }}>{ind.bollinger_upper?.toFixed(0)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MiniStat({ label, value, color }) {
+  return (
+    <div style={{ padding: '3px 0' }}>
+      <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
+      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: color || 'var(--text-primary)' }}>{value ?? '—'}</div>
+    </div>
+  );
+}
+
+function MarketOverview({ snapshot, allSnapshots = {}, globalIndices = [] }) {
+  // Build snapshots map: prefer allSnapshots, fall back to single snapshot
+  const snapshotsMap = {};
+  for (const sym of INSTRUMENTS) {
+    if (allSnapshots[sym]) {
+      snapshotsMap[sym] = allSnapshots[sym];
+    } else if (snapshot && (snapshot.instrument === sym || (sym === 'NIFTY' && !snapshot.instrument))) {
+      snapshotsMap[sym] = snapshot;
+    }
+  }
+
+  // Global bias from any available snapshot (they share the same global bias)
+  const anySnap = snapshotsMap.NIFTY || snapshotsMap.BANKNIFTY || snapshotsMap.FINNIFTY || snapshot;
+
+  return (
+    <>
+      {/* Global Bias + Summary Bar */}
+      {anySnap && (
+        <div className="card" style={{ marginBottom: 12, padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Global Bias</span>
+            <span style={{
+              fontSize: '1.1rem', fontWeight: 700,
+              color: biasColors[anySnap.global_bias] || 'var(--text-primary)',
+            }}>
+              {anySnap.global_bias?.toUpperCase() || '—'}
+            </span>
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            {globalIndices.filter(i => i.last_price > 0).length} global indices tracked
           </div>
         </div>
+      )}
+
+      {/* 3 Instrument Cards Side by Side */}
+      <div className="grid grid-3">
+        {INSTRUMENTS.map((sym) => (
+          <InstrumentCard key={sym} snap={snapshotsMap[sym]} name={sym} />
+        ))}
       </div>
 
       {/* Global Indices Detail */}

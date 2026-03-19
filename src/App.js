@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import {
   fetchMarketSnapshot,
+  fetchAllSnapshots,
   fetchGlobalIndices,
   fetchActiveTrades,
   fetchTodayTrades,
@@ -13,6 +14,7 @@ import {
   refreshIntelligence,
   startSystem,
   stopSystem,
+  setTradingMode,
 } from './api';
 import MarketOverview from './components/MarketOverview';
 import ActiveTrades from './components/ActiveTrades';
@@ -36,6 +38,7 @@ function App() {
 
 function LiveDashboard() {
   const [snapshot, setSnapshot] = useState(null);
+  const [allSnapshots, setAllSnapshots] = useState({});
   const [globalIndices, setGlobalIndices] = useState([]);
   const [activeTrades, setActiveTrades] = useState([]);
   const [todayTrades, setTodayTrades] = useState([]);
@@ -49,7 +52,7 @@ function LiveDashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes, recsRes, intelRes] = await Promise.allSettled([
+      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes, recsRes, intelRes, allSnapsRes] = await Promise.allSettled([
         fetchMarketSnapshot(),
         fetchActiveTrades(),
         fetchTodayTrades(),
@@ -59,9 +62,11 @@ function LiveDashboard() {
         fetchGlobalIndices(),
         fetchRecommendations(),
         fetchIntelligence(),
+        fetchAllSnapshots(),
       ]);
 
       if (snapRes.status === 'fulfilled') setSnapshot(snapRes.value.data);
+      if (allSnapsRes.status === 'fulfilled') setAllSnapshots(allSnapsRes.value.data || {});
       if (activeRes.status === 'fulfilled') setActiveTrades(activeRes.value.data);
       if (todayRes.status === 'fulfilled') setTodayTrades(todayRes.value.data);
       if (perfRes.status === 'fulfilled') setPerformance(perfRes.value.data);
@@ -117,7 +122,7 @@ function LiveDashboard() {
       {/* Header */}
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <h1>TradeAI — NIFTY Options</h1>
+          <h1>TradeAI — Index Options</h1>
           <Link to="/history" style={{ color: 'var(--accent-blue)', textDecoration: 'none', fontSize: '0.85rem', border: '1px solid var(--accent-blue)', padding: '4px 12px', borderRadius: 6 }}>
             History
           </Link>
@@ -139,9 +144,27 @@ function LiveDashboard() {
               </div>
             )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 2 }}>
-              {systemStatus.paper_trading && (
-                <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: 10, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 600 }}>PAPER</span>
-              )}
+              <button
+                onClick={async () => {
+                  const next = systemStatus.paper_trading ? 'live' : 'paper';
+                  if (next === 'live' && !window.confirm('Switch to LIVE trading? Real orders will be placed.')) return;
+                  try {
+                    const res = await setTradingMode(next);
+                    setSystemStatus((s) => ({ ...s, paper_trading: res.data.paper_trading }));
+                  } catch (e) {
+                    alert(e?.response?.data?.detail || 'Failed to switch mode');
+                  }
+                }}
+                style={{
+                  padding: '2px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                  border: 'none', cursor: 'pointer', letterSpacing: 0.5,
+                  background: systemStatus.paper_trading ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)',
+                  color: systemStatus.paper_trading ? '#f59e0b' : '#ef4444',
+                }}
+                title={systemStatus.paper_trading ? 'Click to switch to LIVE' : 'Click to switch to PAPER'}
+              >
+                {systemStatus.paper_trading ? 'PAPER' : '● LIVE'}
+              </button>
               {systemStatus.capital > 0 && (
                 <span style={{ fontSize: 11 }}>Capital: ₹{systemStatus.capital?.toLocaleString('en-IN')}</span>
               )}
@@ -168,9 +191,9 @@ function LiveDashboard() {
         </div>
       )}
 
-      {/* Market Overview */}
+      {/* Market Overview — All 3 Instruments */}
       <section className="section">
-        <MarketOverview snapshot={snapshot} globalIndices={globalIndices} />
+        <MarketOverview snapshot={snapshot} allSnapshots={allSnapshots} globalIndices={globalIndices} />
       </section>
 
       {/* Market Intelligence — AI Pre-Market Analysis */}
