@@ -269,7 +269,7 @@ export default function MarketIntelligence({ intelligence, onRefresh }) {
           onClick={loadNews}
           disabled={loadingNews}
         >
-          {loadingNews ? 'Loading...' : showNews ? 'Hide News' : 'Show Channel News'}
+          {loadingNews ? 'Loading...' : showNews ? 'Hide News' : 'Show Market News'}
         </button>
       </div>
 
@@ -277,7 +277,7 @@ export default function MarketIntelligence({ intelligence, onRefresh }) {
       {showNews && newsData && (
         <div className="card" style={{ marginTop: 12, padding: 14 }}>
           <h4 style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--text-secondary)' }}>
-            Telegram News ({newsData.length} items)
+            Market News ({newsData.length} items)
           </h4>
           {newsData.length === 0 ? (
             <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No news collected yet</span>
@@ -304,13 +304,25 @@ export default function MarketIntelligence({ intelligence, onRefresh }) {
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
-                    {item.symbols ? (
-                      <div>
-                        {item.symbols.split(',').filter(Boolean).map((sym, j) => (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {item.source && (
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          fontSize: 10,
+                          fontWeight: 600,
+                          background: item.source === 'telegram' ? 'rgba(59,130,246,0.15)' : item.source === 'moneycontrol' ? 'rgba(234,88,12,0.15)' : 'rgba(16,185,129,0.15)',
+                          color: item.source === 'telegram' ? '#3b82f6' : item.source === 'moneycontrol' ? '#ea580c' : '#10b981',
+                        }}>
+                          {item.source === 'telegram' ? 'TG' : item.source === 'moneycontrol' ? 'MC' : 'ET'}
+                        </span>
+                      )}
+                      {item.symbols ? (
+                        item.symbols.split(',').filter(Boolean).map((sym, j) => (
                           <span key={j} style={{
                             display: 'inline-block',
                             padding: '1px 6px',
-                            marginRight: 4,
                             borderRadius: 4,
                             fontSize: 11,
                             background: 'var(--border-color)',
@@ -318,9 +330,9 @@ export default function MarketIntelligence({ intelligence, onRefresh }) {
                           }}>
                             {sym.trim()}
                           </span>
-                        ))}
-                      </div>
-                    ) : <div />}
+                        ))
+                      ) : null}
+                    </div>
                     <span style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap', marginLeft: 8 }}>
                       {item.created_at ? new Date(item.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }) : item.date || ''}
                     </span>
