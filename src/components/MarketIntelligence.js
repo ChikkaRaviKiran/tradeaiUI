@@ -303,23 +303,28 @@ export default function MarketIntelligence({ intelligence, onRefresh }) {
                       {item.sentiment} ({item.sentiment_score > 0 ? '+' : ''}{item.sentiment_score?.toFixed(1)})
                     </span>
                   </div>
-                  {item.symbols && (
-                    <div style={{ marginTop: 4 }}>
-                      {item.symbols.split(',').filter(Boolean).map((sym, j) => (
-                        <span key={j} style={{
-                          display: 'inline-block',
-                          padding: '1px 6px',
-                          marginRight: 4,
-                          borderRadius: 4,
-                          fontSize: 11,
-                          background: 'var(--border-color)',
-                          color: 'var(--text-secondary)',
-                        }}>
-                          {sym.trim()}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
+                    {item.symbols ? (
+                      <div>
+                        {item.symbols.split(',').filter(Boolean).map((sym, j) => (
+                          <span key={j} style={{
+                            display: 'inline-block',
+                            padding: '1px 6px',
+                            marginRight: 4,
+                            borderRadius: 4,
+                            fontSize: 11,
+                            background: 'var(--border-color)',
+                            color: 'var(--text-secondary)',
+                          }}>
+                            {sym.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    ) : <div />}
+                    <span style={{ fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap', marginLeft: 8 }}>
+                      {item.created_at ? new Date(item.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }) : item.date || ''}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
