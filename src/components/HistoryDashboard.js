@@ -263,8 +263,9 @@ function DayView({ date, data, loading, onBack, onPrevDay, onNextDay }) {
 
 function DaySummaryCards({ summary }) {
   const instrumentColors = { NIFTY: '#6366f1', BANKNIFTY: '#f59e0b', FINNIFTY: '#22d3ee' };
+  const INDEX_ONLY = new Set(['NIFTY', 'BANKNIFTY', 'FINNIFTY']);
   const instruments = summary.instruments || {};
-  const instNames = Object.keys(instruments).sort();
+  const instNames = Object.keys(instruments).filter(n => INDEX_ONLY.has(n)).sort();
 
   // If we have per-instrument data, show it
   if (instNames.length > 0) {
@@ -381,17 +382,24 @@ function PerformanceSection({ perf, trades }) {
 function SnapshotTimeline({ snapshots }) {
   const [instrumentFilter, setInstrumentFilter] = React.useState('ALL');
 
+  const INDEX_ONLY_SET = new Set(['NIFTY', 'BANKNIFTY', 'FINNIFTY']);
+
+  // Filter to only index instruments
+  const indexSnapshots = React.useMemo(() => 
+    snapshots.filter(s => INDEX_ONLY_SET.has(s.instrument || 'NIFTY')),
+  [snapshots]);
+
   // Discover unique instruments in the data
   const instruments = React.useMemo(() => {
-    const set = new Set(snapshots.map(s => s.instrument || 'NIFTY'));
+    const set = new Set(indexSnapshots.map(s => s.instrument || 'NIFTY'));
     return ['ALL', ...Array.from(set).sort()];
-  }, [snapshots]);
+  }, [indexSnapshots]);
 
   // Filter snapshots by selected instrument
   const filteredSnapshots = React.useMemo(() => {
-    if (instrumentFilter === 'ALL') return snapshots;
-    return snapshots.filter(s => (s.instrument || 'NIFTY') === instrumentFilter);
-  }, [snapshots, instrumentFilter]);
+    if (instrumentFilter === 'ALL') return indexSnapshots;
+    return indexSnapshots.filter(s => (s.instrument || 'NIFTY') === instrumentFilter);
+  }, [indexSnapshots, instrumentFilter]);
 
   // Show every Nth snapshot to keep the table manageable
   const step = filteredSnapshots.length > 60 ? Math.ceil(filteredSnapshots.length / 60) : 1;
