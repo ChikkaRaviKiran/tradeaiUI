@@ -312,10 +312,10 @@ export default function MarketIntelligence({ intelligence, onRefresh }) {
                           borderRadius: 4,
                           fontSize: 10,
                           fontWeight: 600,
-                          background: item.source === 'telegram' ? 'rgba(59,130,246,0.15)' : item.source === 'moneycontrol' ? 'rgba(234,88,12,0.15)' : 'rgba(16,185,129,0.15)',
-                          color: item.source === 'telegram' ? '#3b82f6' : item.source === 'moneycontrol' ? '#ea580c' : '#10b981',
+                          background: item.source === 'telegram' ? 'rgba(59,130,246,0.15)' : item.source === 'livemint' ? 'rgba(234,88,12,0.15)' : item.source === 'ndtv' ? 'rgba(168,85,247,0.15)' : item.source === 'businessstandard' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
+                          color: item.source === 'telegram' ? '#3b82f6' : item.source === 'livemint' ? '#ea580c' : item.source === 'ndtv' ? '#a855f7' : item.source === 'businessstandard' ? '#f59e0b' : '#10b981',
                         }}>
-                          {item.source === 'telegram' ? 'TG' : item.source === 'moneycontrol' ? 'MC' : 'ET'}
+                          {item.source === 'telegram' ? 'TG' : item.source === 'livemint' ? 'LM' : item.source === 'ndtv' ? 'NDTV' : item.source === 'businessstandard' ? 'BS' : 'ET'}
                         </span>
                       )}
                       {item.symbols ? (
