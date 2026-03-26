@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
 import {
   fetchMarketSnapshot,
   fetchAllSnapshots,
@@ -24,7 +23,6 @@ import {
 import MarketOverview from './components/MarketOverview';
 import ActiveTrades from './components/ActiveTrades';
 import CompletedTrades from './components/CompletedTrades';
-import PerformancePanel from './components/PerformancePanel';
 import AlertsPanel from './components/AlertsPanel';
 import RecommendationsPanel from './components/RecommendationsPanel';
 import MarketIntelligence from './components/MarketIntelligence';
@@ -32,18 +30,10 @@ import SystemActivityLog from './components/SystemActivityLog';
 import HistoryDashboard from './components/HistoryDashboard';
 import V2ComparisonPanel from './components/V2ComparisonPanel';
 
-const REFRESH_INTERVAL = 15000; // 15 seconds
+const REFRESH_INTERVAL = 15000;
 
 function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<LiveDashboard />} />
-      <Route path="/history" element={<HistoryDashboard />} />
-    </Routes>
-  );
-}
-
-function LiveDashboard() {
+  const [tab, setTab] = useState('dashboard');
   const [snapshot, setSnapshot] = useState(null);
   const [allSnapshots, setAllSnapshots] = useState({});
   const [globalIndices, setGlobalIndices] = useState([]);
@@ -64,7 +54,7 @@ function LiveDashboard() {
 
   const loadData = useCallback(async () => {
     try {
-      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes, recsRes, intelRes, allSnapsRes, activityRes, v2ActiveRes, v2TodayRes, v2StatusRes, compRes] = await Promise.allSettled([
+      const results = await Promise.allSettled([
         fetchMarketSnapshot(),
         fetchActiveTrades(),
         fetchTodayTrades(),
@@ -82,21 +72,23 @@ function LiveDashboard() {
         fetchPerformanceComparison(),
       ]);
 
-      if (snapRes.status === 'fulfilled') setSnapshot(snapRes.value.data);
-      if (allSnapsRes.status === 'fulfilled') setAllSnapshots(allSnapsRes.value.data || {});
-      if (activeRes.status === 'fulfilled') setActiveTrades(activeRes.value.data);
-      if (todayRes.status === 'fulfilled') setTodayTrades(todayRes.value.data);
-      if (perfRes.status === 'fulfilled') setPerformance(perfRes.value.data);
-      if (alertsRes.status === 'fulfilled') setAlerts(alertsRes.value.data);
-      if (statusRes.status === 'fulfilled') setSystemStatus(statusRes.value.data);
-      if (globalRes.status === 'fulfilled') setGlobalIndices(globalRes.value.data);
-      if (recsRes.status === 'fulfilled') setRecommendations(recsRes.value.data);
-      if (intelRes.status === 'fulfilled') setIntelligence(intelRes.value.data);
-      if (activityRes.status === 'fulfilled') setActivity(activityRes.value.data);
-      if (v2ActiveRes.status === 'fulfilled') setV2ActiveTrades(v2ActiveRes.value.data);
-      if (v2TodayRes.status === 'fulfilled') setV2TodayTrades(v2TodayRes.value.data);
-      if (v2StatusRes.status === 'fulfilled') setV2Status(v2StatusRes.value.data);
-      if (compRes.status === 'fulfilled') setComparison(compRes.value.data);
+      const val = (i) => results[i].status === 'fulfilled' ? results[i].value.data : null;
+
+      if (val(0) !== null) setSnapshot(val(0));
+      if (val(9) !== null) setAllSnapshots(val(9) || {});
+      if (val(1) !== null) setActiveTrades(val(1));
+      if (val(2) !== null) setTodayTrades(val(2));
+      if (val(3) !== null) setPerformance(val(3));
+      if (val(4) !== null) setAlerts(val(4));
+      if (val(5) !== null) setSystemStatus(val(5));
+      if (val(6) !== null) setGlobalIndices(val(6));
+      if (val(7) !== null) setRecommendations(val(7));
+      if (val(8) !== null) setIntelligence(val(8));
+      if (val(10) !== null) setActivity(val(10));
+      if (val(11) !== null) setV2ActiveTrades(val(11));
+      if (val(12) !== null) setV2TodayTrades(val(12));
+      if (val(13) !== null) setV2Status(val(13));
+      if (val(14) !== null) setComparison(val(14));
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -111,94 +103,86 @@ function LiveDashboard() {
   }, [loadData]);
 
   const handleStart = async () => {
-    try {
-      await startSystem();
-      setSystemStatus((s) => ({ ...s, status: 'running' }));
-    } catch {}
+    try { await startSystem(); setSystemStatus((s) => ({ ...s, status: 'running' })); } catch {}
   };
 
   const handleStop = async () => {
-    try {
-      await stopSystem();
-      setSystemStatus((s) => ({ ...s, status: 'stopped' }));
-    } catch {}
+    try { await stopSystem(); setSystemStatus((s) => ({ ...s, status: 'stopped' })); } catch {}
   };
 
   const handleRefreshIntelligence = async () => {
     try {
       await refreshIntelligence();
-      // Reload after a short delay
       setTimeout(async () => {
-        try {
-          const res = await fetchIntelligence();
-          setIntelligence(res.data);
-        } catch {}
+        try { const res = await fetchIntelligence(); setIntelligence(res.data); } catch {}
       }, 5000);
     } catch {}
   };
 
+  const handleModeToggle = async () => {
+    const next = systemStatus.paper_trading ? 'live' : 'paper';
+    if (next === 'live' && !window.confirm('Switch to LIVE trading? Real orders will be placed.')) return;
+    try {
+      const res = await setTradingMode(next);
+      setSystemStatus((s) => ({ ...s, paper_trading: res.data.paper_trading }));
+    } catch (e) {
+      alert(e?.response?.data?.detail || 'Failed to switch mode');
+    }
+  };
+
   const isRunning = systemStatus.status === 'running';
+  const p = performance || {};
+  const v2s = v2Status || {};
+  const allActive = [...activeTrades, ...v2ActiveTrades.map(t => ({ ...t, _engine: 'v2' }))];
+  const v1Closed = todayTrades.filter((t) => t.status === 'closed');
+  const v2Closed = (v2TodayTrades || []).filter((t) => t.status === 'closed');
+  const allClosed = [...v1Closed, ...v2Closed.map(t => ({ ...t, _engine: 'v2' }))];
 
   return (
-    <div className="dashboard">
-      {/* Header */}
+    <div className="app-container">
+      {/* ── Header ─────────────────────────────────────────────── */}
       <header className="header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <h1>TradeAI — Index Options</h1>
-          <Link to="/history" style={{ color: 'var(--accent-blue)', textDecoration: 'none', fontSize: '0.85rem', border: '1px solid var(--accent-blue)', padding: '4px 12px', borderRadius: 6 }}>
-            History
-          </Link>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <h1>TradeAI</h1>
+        <div className="header-controls">
+          <div className="header-meta">
             {lastUpdated && (
-              <div>Updated: {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+              <span>
+                {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </span>
             )}
             {systemStatus.cycle_count > 0 && (
-              <div>
-                Cycle #{systemStatus.cycle_count}
-                {systemStatus.expiries && Object.keys(systemStatus.expiries).length > 0 && (
-                  <> · Expiry: {Object.entries(systemStatus.expiries).map(([sym, exp]) => `${sym}: ${exp}`).join(', ')}</>
-                )}
-                {systemStatus.db_connected === false && (
-                  <span style={{ color: 'var(--accent-red)', marginLeft: 8 }}>· DB Disconnected</span>
-                )}
-              </div>
+              <span style={{ marginLeft: 8 }}>
+                · Cycle #{systemStatus.cycle_count}
+              </span>
             )}
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 2 }}>
-              <button
-                onClick={async () => {
-                  const next = systemStatus.paper_trading ? 'live' : 'paper';
-                  if (next === 'live' && !window.confirm('Switch to LIVE trading? Real orders will be placed.')) return;
-                  try {
-                    const res = await setTradingMode(next);
-                    setSystemStatus((s) => ({ ...s, paper_trading: res.data.paper_trading }));
-                  } catch (e) {
-                    alert(e?.response?.data?.detail || 'Failed to switch mode');
-                  }
-                }}
-                style={{
-                  padding: '2px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
-                  border: 'none', cursor: 'pointer', letterSpacing: 0.5,
-                  background: systemStatus.paper_trading ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)',
-                  color: systemStatus.paper_trading ? '#f59e0b' : '#ef4444',
-                }}
-                title={systemStatus.paper_trading ? 'Click to switch to LIVE' : 'Click to switch to PAPER'}
-              >
-                {systemStatus.paper_trading ? 'PAPER' : '● LIVE'}
-              </button>
-              {systemStatus.capital > 0 && (
-                <span style={{ fontSize: 11 }}>Capital: ₹{systemStatus.capital?.toLocaleString('en-IN')}</span>
-              )}
-              {systemStatus.active_instruments && systemStatus.active_instruments.length > 0 && (
-                <span style={{ fontSize: 11 }}>{systemStatus.active_instruments.join(', ')}</span>
-              )}
-            </div>
+            {systemStatus.db_connected === false && (
+              <span style={{ color: 'var(--accent-red)', marginLeft: 6 }}>· DB Down</span>
+            )}
           </div>
+
+          <button
+            onClick={handleModeToggle}
+            style={{
+              padding: '3px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+              border: 'none', cursor: 'pointer', letterSpacing: 0.5,
+              background: systemStatus.paper_trading ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+              color: systemStatus.paper_trading ? '#f59e0b' : '#ef4444',
+            }}
+          >
+            {systemStatus.paper_trading ? 'PAPER' : '● LIVE'}
+          </button>
+
+          {systemStatus.capital > 0 && (
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+              ₹{systemStatus.capital?.toLocaleString('en-IN')}
+            </span>
+          )}
+
           <span className={`status-badge ${isRunning ? 'running' : 'stopped'}`}>
             <span className="status-dot" />
             {isRunning ? 'Running' : 'Stopped'}
           </span>
+
           {isRunning ? (
             <button className="btn btn-stop" onClick={handleStop}>Stop</button>
           ) : (
@@ -208,70 +192,179 @@ function LiveDashboard() {
       </header>
 
       {error && (
-        <div className="card" style={{ borderColor: 'var(--accent-red)', marginBottom: 20 }}>
-          <p style={{ color: 'var(--accent-red)' }}>{error}</p>
+        <div className="card" style={{ borderColor: 'var(--accent-red)', margin: '12px 0', padding: 12 }}>
+          <span style={{ color: 'var(--accent-red)', fontSize: '0.85rem' }}>{error}</span>
         </div>
       )}
 
-      {/* Market Overview — All 3 Instruments */}
-      <section className="section">
+      {/* ── KPI Strip ──────────────────────────────────────────── */}
+      <div className="kpi-strip">
+        <KPI label="Today P&L" value={`₹${(p.total_pnl || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+          color={(p.total_pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
+          sub={`${p.total_trades || 0} trades`} />
+        <KPI label="Win Rate" value={`${(p.win_rate || 0).toFixed(1)}%`}
+          color={(p.win_rate || 0) >= 50 ? 'var(--accent-green)' : 'var(--accent-red)'}
+          sub={`${p.winning_trades || 0}W / ${p.losing_trades || 0}L`} />
+        <KPI label="Profit Factor" value={(p.profit_factor || 0).toFixed(2)}
+          color={(p.profit_factor || 0) >= 1 ? 'var(--accent-green)' : 'var(--accent-red)'}
+          sub={`DD: ₹${(p.max_drawdown || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} />
+        <KPI label="Active Trades" value={allActive.length}
+          color={allActive.length > 0 ? 'var(--accent-blue)' : 'var(--text-muted)'}
+          sub={`V1: ${activeTrades.length} · V2: ${v2ActiveTrades.length}`} />
+        <KPI label="V2 P&L" value={`₹${(v2s.today_pnl || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+          color={(v2s.today_pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
+          sub={`${v2s.today_total || 0} trades · ${(v2s.day_type || '—').toUpperCase()}`} />
+        <KPI label="V2 Win Rate"
+          value={v2s.today_total > 0 ? `${((v2s.today_wins || 0) / v2s.today_total * 100).toFixed(0)}%` : '—'}
+          color={(v2s.today_wins || 0) > 0 ? 'var(--accent-green)' : 'var(--text-muted)'}
+          sub={`${v2s.today_wins || 0}W / ${(v2s.today_total || 0) - (v2s.today_wins || 0)}L`} />
+      </div>
+
+      {/* ── Tab Navigation ─────────────────────────────────────── */}
+      <nav className="tab-nav">
+        {[
+          ['dashboard', 'Dashboard'],
+          ['intelligence', 'Intelligence'],
+          ['system', 'System'],
+          ['history', 'History'],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            className={`tab-btn ${tab === key ? 'active' : ''}`}
+            onClick={() => setTab(key)}
+          >
+            {label}
+            {key === 'dashboard' && allActive.length > 0 && (
+              <span className="tab-badge">{allActive.length}</span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      {/* ── Tab Content ────────────────────────────────────────── */}
+      {tab === 'dashboard' && (
+        <DashboardTab
+          snapshot={snapshot} allSnapshots={allSnapshots} globalIndices={globalIndices}
+          allActive={allActive} allClosed={allClosed}
+          activeTrades={activeTrades} v2ActiveTrades={v2ActiveTrades}
+          alerts={alerts}
+          v2Status={v2Status} comparison={comparison}
+          v2TodayTrades={v2TodayTrades}
+        />
+      )}
+
+      {tab === 'intelligence' && (
+        <IntelligenceTab
+          intelligence={intelligence} onRefresh={handleRefreshIntelligence}
+          recommendations={recommendations} onRecommendationsUpdate={setRecommendations}
+        />
+      )}
+
+      {tab === 'system' && (
+        <SystemTab
+          activity={activity}
+          v2Status={v2Status} comparison={comparison}
+          v2ActiveTrades={v2ActiveTrades} v2TodayTrades={v2TodayTrades}
+        />
+      )}
+
+      {tab === 'history' && (
+        <HistoryDashboard />
+      )}
+    </div>
+  );
+}
+
+/* ─── KPI Component ──────────────────────────────────────────────────── */
+function KPI({ label, value, color, sub }) {
+  return (
+    <div className="kpi-item">
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value" style={{ color }}>{value}</div>
+      {sub && <div className="kpi-sub">{sub}</div>}
+    </div>
+  );
+}
+
+/* ─── Dashboard Tab ──────────────────────────────────────────────────── */
+function DashboardTab({ snapshot, allSnapshots, globalIndices, allActive, allClosed, activeTrades, v2ActiveTrades, alerts, v2Status, comparison, v2TodayTrades }) {
+  return (
+    <>
+      {/* Market Overview */}
+      <section className="section" style={{ marginTop: 4 }}>
         <MarketOverview snapshot={snapshot} allSnapshots={allSnapshots} globalIndices={globalIndices} />
       </section>
 
-      {/* Market Intelligence — AI Pre-Market Analysis */}
-      <section className="section">
+      {/* Main content: Trades left, Alerts right */}
+      <div className="dashboard-main">
+        <div>
+          {/* Active Trades — Unified V1+V2 */}
+          <section className="section">
+            <h2 className="section-title">Active Trades</h2>
+            <ActiveTrades trades={allActive} showEngine />
+          </section>
+
+          {/* V2 Engine Status — compact */}
+          {v2Status?.enabled && (
+            <section className="section">
+              <V2ComparisonPanel
+                v2Status={v2Status} comparison={comparison}
+                v2ActiveTrades={[]} v2TodayTrades={v2TodayTrades}
+                compact
+              />
+            </section>
+          )}
+
+          {/* Completed Trades — Unified V1+V2 */}
+          <section className="section">
+            <h2 className="section-title">Completed Trades</h2>
+            <CompletedTrades trades={allClosed} showEngine />
+          </section>
+        </div>
+
+        {/* Right sidebar: Alerts */}
+        <div>
+          <h2 className="section-title" style={{ marginTop: 0 }}>Alerts</h2>
+          <AlertsPanel alerts={alerts} compact />
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─── Intelligence Tab ───────────────────────────────────────────────── */
+function IntelligenceTab({ intelligence, onRefresh, recommendations, onRecommendationsUpdate }) {
+  return (
+    <>
+      <section className="section" style={{ marginTop: 4 }}>
         <h2 className="section-title">Market Intelligence</h2>
-        <MarketIntelligence intelligence={intelligence} onRefresh={handleRefreshIntelligence} />
+        <MarketIntelligence intelligence={intelligence} onRefresh={onRefresh} />
       </section>
 
-      {/* System Pipeline Monitor — Every Step Visible */}
       <section className="section">
+        <h2 className="section-title">Strategy Recommendations</h2>
+        <RecommendationsPanel recommendations={recommendations} onRecommendationsUpdate={onRecommendationsUpdate} />
+      </section>
+    </>
+  );
+}
+
+/* ─── System Tab ─────────────────────────────────────────────────────── */
+function SystemTab({ activity, v2Status, comparison, v2ActiveTrades, v2TodayTrades }) {
+  return (
+    <>
+      <section className="section" style={{ marginTop: 4 }}>
         <SystemActivityLog activity={activity} />
       </section>
 
-      {/* Performance Metrics */}
-      <section className="section">
-        <h2 className="section-title">Performance Metrics</h2>
-        <PerformancePanel performance={performance} />
-      </section>
-
-      {/* V2 Engine Comparison */}
       <section className="section">
         <h2 className="section-title">V2 Engine — Comparison</h2>
         <V2ComparisonPanel
-          v2Status={v2Status}
-          comparison={comparison}
-          v2ActiveTrades={v2ActiveTrades}
-          v2TodayTrades={v2TodayTrades}
+          v2Status={v2Status} comparison={comparison}
+          v2ActiveTrades={v2ActiveTrades} v2TodayTrades={v2TodayTrades}
         />
       </section>
-
-      {/* Active Trades + Alerts side by side */}
-      <section className="section">
-        <div className="grid grid-2">
-          <div>
-            <h2 className="section-title">Active Trades</h2>
-            <ActiveTrades trades={activeTrades} />
-          </div>
-          <div>
-            <h2 className="section-title">Alerts &amp; Signals</h2>
-            <AlertsPanel alerts={alerts} />
-          </div>
-        </div>
-      </section>
-
-      {/* Strategy Recommendations */}
-      <section className="section">
-        <h2 className="section-title">Strategy Recommendations</h2>
-        <RecommendationsPanel recommendations={recommendations} onRecommendationsUpdate={setRecommendations} />
-      </section>
-
-      {/* Completed Trades */}
-      <section className="section">
-        <h2 className="section-title">Today's Completed Trades</h2>
-        <CompletedTrades trades={todayTrades.filter((t) => t.status === 'closed')} />
-      </section>
-    </div>
+    </>
   );
 }
 

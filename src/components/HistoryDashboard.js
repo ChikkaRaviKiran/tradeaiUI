@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { fetchCalendarData, fetchDayData } from '../api';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -63,19 +62,15 @@ function HistoryDashboard() {
   };
 
   return (
-    <div className="dashboard">
-      <header className="header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link to="/" style={{ color: 'var(--accent-blue)', textDecoration: 'none', fontSize: '0.85rem' }}>← Live Dashboard</Link>
-          <h1>History</h1>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+        <button className="btn btn-start" onClick={goToToday}>Today</button>
+        {view === 'day' && (
           <button className="btn" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} onClick={() => { setView('calendar'); setSelectedDate(null); setDayData(null); }}>
             Calendar
           </button>
-          <button className="btn btn-start" onClick={goToToday}>Today</button>
-        </div>
-      </header>
+        )}
+      </div>
 
       {view === 'calendar' && (
         <CalendarView

@@ -1,6 +1,6 @@
 import React from 'react';
 
-function CompletedTrades({ trades }) {
+function CompletedTrades({ trades, showEngine }) {
   if (!trades || trades.length === 0) {
     return (
       <div className="card">
@@ -17,13 +17,12 @@ function CompletedTrades({ trades }) {
         <thead>
           <tr>
             <th>Time</th>
+            {showEngine && <th>Engine</th>}
             <th>Symbol</th>
             <th>Strategy</th>
             <th>Type</th>
             <th>Entry</th>
             <th>Exit</th>
-            <th>SL</th>
-            <th>T1</th>
             <th>PnL</th>
             <th>Exit Reason</th>
             <th>Status</th>
@@ -35,6 +34,13 @@ function CompletedTrades({ trades }) {
             return (
               <tr key={trade.trade_id}>
                 <td style={{ whiteSpace: 'nowrap' }}>{trade.time}{trade.exit_time ? ` → ${trade.exit_time}` : ''}</td>
+                {showEngine && (
+                  <td>
+                    <span className={`tag ${trade._engine === 'v2' || trade.engine === 'v2' ? 'tag-v2' : 'tag-v1'}`}>
+                      {trade._engine === 'v2' || trade.engine === 'v2' ? 'V2' : 'V1'}
+                    </span>
+                  </td>
+                )}
                 <td style={{ fontWeight: 600 }}>{trade.symbol}</td>
                 <td><span className="tag tag-strategy">{trade.strategy}</span></td>
                 <td>
@@ -44,13 +50,11 @@ function CompletedTrades({ trades }) {
                 </td>
                 <td>{trade.entry_price?.toFixed(2)}</td>
                 <td>{trade.exit_price?.toFixed(2)}</td>
-                <td className="negative">{trade.stoploss?.toFixed(2)}</td>
-                <td className="positive">{trade.target1?.toFixed(2)}</td>
                 <td className={isWin ? 'positive' : 'negative'} style={{ fontWeight: 600 }}>
                   {isWin ? '+' : ''}{trade.pnl?.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                 </td>
                 <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  {trade.reason || '—'}
+                  {trade.exit_type || trade.reason || '—'}
                 </td>
                 <td>
                   <span className={`tag ${isWin ? 'tag-ce' : 'tag-pe'}`}>

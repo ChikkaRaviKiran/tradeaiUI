@@ -46,7 +46,7 @@ function MetricCard({ label, v1, v2, format, better }) {
   );
 }
 
-function V2ComparisonPanel({ v2Status, comparison, v2ActiveTrades, v2TodayTrades }) {
+function V2ComparisonPanel({ v2Status, comparison, v2ActiveTrades, v2TodayTrades, compact }) {
   const v1 = comparison?.v1 || {};
   const v2 = comparison?.v2 || {};
   const status = v2Status || {};
@@ -93,6 +93,9 @@ function V2ComparisonPanel({ v2Status, comparison, v2ActiveTrades, v2TodayTrades
         <MetricCard label="Avg PnL/Trade" v1={v1.avg_pnl_per_trade} v2={v2.avg_pnl_per_trade} format="inr" better="higher" />
       </div>
 
+      {/* In compact mode, only show status bar + metrics */}
+      {compact ? null : (
+      <>
       {/* V2 Active Trades */}
       {v2ActiveTrades && v2ActiveTrades.length > 0 && (
         <div style={{ marginBottom: 16 }}>
@@ -217,6 +220,8 @@ function V2ComparisonPanel({ v2Status, comparison, v2ActiveTrades, v2TodayTrades
         <div className="card" style={{ textAlign: 'center', padding: 20, color: 'var(--text-secondary)' }}>
           No V2 trades yet today
         </div>
+      )}
+      </>
       )}
     </div>
   );
