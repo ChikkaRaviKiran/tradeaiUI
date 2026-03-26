@@ -87,50 +87,26 @@ function InstrumentCard({ snap, name }) {
         <MiniStat label="ATR" value={ind.atr?.toFixed(1)} />
       </div>
 
-      {/* EMAs */}
+      {/* EMAs + Trend */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
-        <MiniStat label="EMA 9" value={ind.ema9?.toFixed(1)} />
-        <MiniStat label="EMA 20" value={ind.ema20?.toFixed(1)} />
-        <MiniStat label="EMA 50" value={ind.ema50?.toFixed(1)} />
+        <MiniStat label="EMA 20" value={ind.ema20?.toFixed(1)}
+          color={ind.ema20 != null ? (price > ind.ema20 ? 'var(--accent-green)' : 'var(--accent-red)') : null} />
         <MiniStat label="EMA 200" value={ind.ema200?.toFixed(1)}
           color={ind.ema200 != null ? (price > ind.ema200 ? 'var(--accent-green)' : 'var(--accent-red)') : null} />
-      </div>
-
-      {/* MACD + Trend */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
-        <MiniStat label="MACD" value={ind.macd?.toFixed(1)}
-          color={ind.macd_hist > 0 ? 'var(--accent-green)' : ind.macd_hist < 0 ? 'var(--accent-red)' : null} />
-        <MiniStat label="MACD Hist" value={ind.macd_hist?.toFixed(2)}
+        <MiniStat label="MACD" value={ind.macd_hist?.toFixed(2)}
           color={ind.macd_hist > 0 ? 'var(--accent-green)' : ind.macd_hist < 0 ? 'var(--accent-red)' : null} />
         <MiniStat label="Trend" value={ind.trend_strength != null ? `${ind.trend_strength}/3` : null}
           color={ind.trend_strength >= 2 ? 'var(--accent-green)' : ind.trend_strength <= 1 ? 'var(--accent-red)' : 'var(--accent-yellow)'} />
+      </div>
+
+      {/* Options: PCR, Max Pain, OI */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
         <MiniStat label="PCR" value={opt.pcr?.toFixed(2)}
           color={opt.pcr > 1.2 ? 'var(--accent-green)' : opt.pcr < 0.7 ? 'var(--accent-red)' : null} />
-      </div>
-
-      {/* Prev Day Levels */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 10 }}>
-        <MiniStat label="Prev High" value={snap.prev_day_high?.toFixed(1)} color="var(--accent-red)" />
-        <MiniStat label="Prev Low" value={snap.prev_day_low?.toFixed(1)} color="var(--accent-green)" />
         <MiniStat label="Max Pain" value={opt.max_pain?.toLocaleString()} />
-      </div>
-
-      {/* OI Data */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
         <MiniStat label="CE OI" value={opt.call_oi_cluster?.toLocaleString()} color="var(--accent-red)" />
         <MiniStat label="PE OI" value={opt.put_oi_cluster?.toLocaleString()} color="var(--accent-green)" />
-        <MiniStat label="OI Change" value={opt.oi_change != null ? (opt.oi_change > 0 ? '+' : '') + opt.oi_change.toLocaleString() : null}
-          color={opt.oi_change > 0 ? 'var(--accent-green)' : opt.oi_change < 0 ? 'var(--accent-red)' : null} />
       </div>
-
-      {/* Bollinger inline */}
-      {ind.bollinger_upper != null && (
-        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center' }}>
-          BB: <span style={{ color: 'var(--accent-red)' }}>{ind.bollinger_lower?.toFixed(0)}</span>
-          {' — '}<span>{ind.bollinger_middle?.toFixed(0)}</span>
-          {' — '}<span style={{ color: 'var(--accent-green)' }}>{ind.bollinger_upper?.toFixed(0)}</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -144,19 +120,16 @@ function MiniStat({ label, value, color }) {
   );
 }
 
-function MarketOverview({ snapshot, allSnapshots = {}, globalIndices = [] }) {
-  // Build snapshots map: prefer allSnapshots, fall back to single snapshot
+function MarketOverview({ allSnapshots = {}, globalIndices = [] }) {
   const snapshotsMap = {};
   for (const sym of INSTRUMENTS) {
     if (allSnapshots[sym]) {
       snapshotsMap[sym] = allSnapshots[sym];
-    } else if (snapshot && (snapshot.instrument === sym || (sym === 'NIFTY' && !snapshot.instrument))) {
-      snapshotsMap[sym] = snapshot;
     }
   }
 
   // Global bias from any available snapshot (they share the same global bias)
-  const anySnap = snapshotsMap.NIFTY || snapshotsMap.BANKNIFTY || snapshotsMap.FINNIFTY || snapshot;
+  const anySnap = snapshotsMap.NIFTY || snapshotsMap.BANKNIFTY || snapshotsMap.FINNIFTY;
 
   return (
     <>

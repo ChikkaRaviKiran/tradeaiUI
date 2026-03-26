@@ -239,14 +239,8 @@ body {
   margin: 6px 0 2px;
 }
 
-.stat-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
 .positive { color: var(--accent-green); }
 .negative { color: var(--accent-red); }
-.neutral { color: var(--accent-yellow); }
 
 /* ─── Tables ─────────────────────────────────────────────────────────── */
 .table-container {
@@ -453,47 +447,12 @@ tr:hover td {
   margin-top: 2px;
 }
 
-/* ─── Empty State ────────────────────────────────────────────────────── */
-.empty-state {
-  text-align: center;
-  padding: 32px;
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
 /* ─── Loading ────────────────────────────────────────────────────────── */
 .loading {
   display: flex;
   justify-content: center;
   padding: 40px;
   color: var(--text-secondary);
-}
-
-/* ─── Indicator grid for MarketOverview ───────────────────────────────── */
-.indicator-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-
-.ind-item {
-  display: flex;
-  flex-direction: column;
-  padding: 4px 0;
-}
-
-.ind-label {
-  font-size: 0.6rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 2px;
-}
-
-.ind-value {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-primary);
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────────── */
@@ -506,7 +465,6 @@ tr:hover td {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }
   .grid-3 { grid-template-columns: 1fr; }
   .grid-6 { grid-template-columns: repeat(3, 1fr); }
-  .indicator-grid { grid-template-columns: repeat(2, 1fr); }
   .tab-btn { padding: 8px 14px; font-size: 0.78rem; }
 }
 
@@ -518,7 +476,6 @@ tr:hover td {
 @media (max-width: 640px) {
   .grid-4, .grid-2 { grid-template-columns: 1fr; }
   .grid-6 { grid-template-columns: repeat(2, 1fr); }
-  .indicator-grid { grid-template-columns: 1fr; }
   .header { flex-direction: column; gap: 8px; }
 }
 

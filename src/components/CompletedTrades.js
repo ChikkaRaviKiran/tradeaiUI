@@ -25,7 +25,6 @@ function CompletedTrades({ trades, showEngine }) {
             <th>Exit</th>
             <th>PnL</th>
             <th>Exit Reason</th>
-            <th>Status</th>
           </tr>
         </thead>
         <tbody>
@@ -55,11 +54,6 @@ function CompletedTrades({ trades, showEngine }) {
                 </td>
                 <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   {trade.exit_type || trade.reason || '—'}
-                </td>
-                <td>
-                  <span className={`tag ${isWin ? 'tag-ce' : 'tag-pe'}`}>
-                    {isWin ? 'WIN' : 'LOSS'}
-                  </span>
                 </td>
               </tr>
             );

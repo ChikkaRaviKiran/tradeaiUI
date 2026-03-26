@@ -61,9 +61,9 @@ export default function MarketIntelligence({ intelligence, onRefresh }) {
     }
     setLoadingNews(true);
     try {
-      const resp = await fetch('/api/intelligence/news?days=2');
-      const data = await resp.json();
-      setNewsData(data.news || []);
+      const { fetchIntelligenceNews } = await import('../api');
+      const res = await fetchIntelligenceNews(2);
+      setNewsData(res.data.news || []);
       setShowNews(true);
     } catch {
       setNewsData([]);
