@@ -45,4 +45,10 @@ export const fetchIntelligenceNews = (days = 1) => api.get(`/api/intelligence/ne
 export const fetchIntelligenceHistory = (limit = 7) => api.get(`/api/intelligence/history?limit=${encodeURIComponent(limit)}`);
 export const refreshIntelligence = () => api.post('/api/intelligence/refresh');
 
+// V2 Engine
+export const fetchV2ActiveTrades = () => api.get('/api/v2/active');
+export const fetchV2TodayTrades = () => api.get('/api/v2/today');
+export const fetchV2Status = () => api.get('/api/v2/status');
+export const fetchPerformanceComparison = () => api.get('/api/performance/comparison');
+
 export default api;

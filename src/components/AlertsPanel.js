@@ -124,6 +124,9 @@ function AlertsPanel({ alerts: defaultAlerts }) {
                 {alert.message}
               </pre>
               <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                {alert.engine === 'v2' && (
+                  <span className="tag" style={{ fontSize: '0.6rem', fontWeight: 700, background: 'rgba(59,130,246,0.15)', color: 'var(--accent-blue)' }}>V2</span>
+                )}
                 <span className="tag tag-strategy" style={{ fontSize: '0.65rem' }}>{cfg.label}</span>
                 {alert.strategy && (
                   <span className="tag tag-strategy" style={{ fontSize: '0.65rem' }}>{alert.strategy}</span>

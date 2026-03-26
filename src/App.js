@@ -16,6 +16,10 @@ import {
   startSystem,
   stopSystem,
   setTradingMode,
+  fetchV2ActiveTrades,
+  fetchV2TodayTrades,
+  fetchV2Status,
+  fetchPerformanceComparison,
 } from './api';
 import MarketOverview from './components/MarketOverview';
 import ActiveTrades from './components/ActiveTrades';
@@ -26,6 +30,7 @@ import RecommendationsPanel from './components/RecommendationsPanel';
 import MarketIntelligence from './components/MarketIntelligence';
 import SystemActivityLog from './components/SystemActivityLog';
 import HistoryDashboard from './components/HistoryDashboard';
+import V2ComparisonPanel from './components/V2ComparisonPanel';
 
 const REFRESH_INTERVAL = 15000; // 15 seconds
 
@@ -50,12 +55,16 @@ function LiveDashboard() {
   const [recommendations, setRecommendations] = useState(null);
   const [intelligence, setIntelligence] = useState(null);
   const [activity, setActivity] = useState(null);
+  const [v2ActiveTrades, setV2ActiveTrades] = useState([]);
+  const [v2TodayTrades, setV2TodayTrades] = useState([]);
+  const [v2Status, setV2Status] = useState(null);
+  const [comparison, setComparison] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes, recsRes, intelRes, allSnapsRes, activityRes] = await Promise.allSettled([
+      const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes, recsRes, intelRes, allSnapsRes, activityRes, v2ActiveRes, v2TodayRes, v2StatusRes, compRes] = await Promise.allSettled([
         fetchMarketSnapshot(),
         fetchActiveTrades(),
         fetchTodayTrades(),
@@ -67,6 +76,10 @@ function LiveDashboard() {
         fetchIntelligence(),
         fetchAllSnapshots(),
         fetchSystemActivity(),
+        fetchV2ActiveTrades(),
+        fetchV2TodayTrades(),
+        fetchV2Status(),
+        fetchPerformanceComparison(),
       ]);
 
       if (snapRes.status === 'fulfilled') setSnapshot(snapRes.value.data);
@@ -80,6 +93,10 @@ function LiveDashboard() {
       if (recsRes.status === 'fulfilled') setRecommendations(recsRes.value.data);
       if (intelRes.status === 'fulfilled') setIntelligence(intelRes.value.data);
       if (activityRes.status === 'fulfilled') setActivity(activityRes.value.data);
+      if (v2ActiveRes.status === 'fulfilled') setV2ActiveTrades(v2ActiveRes.value.data);
+      if (v2TodayRes.status === 'fulfilled') setV2TodayTrades(v2TodayRes.value.data);
+      if (v2StatusRes.status === 'fulfilled') setV2Status(v2StatusRes.value.data);
+      if (compRes.status === 'fulfilled') setComparison(compRes.value.data);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -216,6 +233,17 @@ function LiveDashboard() {
       <section className="section">
         <h2 className="section-title">Performance Metrics</h2>
         <PerformancePanel performance={performance} />
+      </section>
+
+      {/* V2 Engine Comparison */}
+      <section className="section">
+        <h2 className="section-title">V2 Engine — Comparison</h2>
+        <V2ComparisonPanel
+          v2Status={v2Status}
+          comparison={comparison}
+          v2ActiveTrades={v2ActiveTrades}
+          v2TodayTrades={v2TodayTrades}
+        />
       </section>
 
       {/* Active Trades + Alerts side by side */}
