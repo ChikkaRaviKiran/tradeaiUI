@@ -36,10 +36,14 @@ function LiveDashboard() {
   const [todayTrades, setTodayTrades] = useState([]);
   const [performance, setPerformance] = useState(null);
   const [alerts, setAlerts] = useState([]);
-  const [systemStatus, setSystemStatus] = useState({ status: 'stopped' });
+  const [systemStatus, setSystemStatus] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
+  const isHoliday = systemStatus?.status === 'holiday' || systemStatus?.is_holiday;
+  const isRunning = systemStatus?.status === 'running';
+
+  // Full data fetch — only used on non-holiday trading days
   const loadData = useCallback(async () => {
     try {
       const [snapRes, activeRes, todayRes, perfRes, alertsRes, statusRes, globalRes] = await Promise.allSettled([
@@ -66,10 +70,36 @@ function LiveDashboard() {
     }
   }, []);
 
+  // On mount: check system status first — if holiday, skip all polling
   useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, REFRESH_INTERVAL);
-    return () => clearInterval(interval);
+    let interval;
+    let cancelled = false;
+
+    async function init() {
+      try {
+        const res = await fetchSystemStatus();
+        if (cancelled) return;
+        setSystemStatus(res.data);
+
+        // Holiday — no polling, just show the banner
+        if (res.data?.is_holiday) return;
+
+        // Not a holiday — load all data and start polling
+        loadData();
+        interval = setInterval(loadData, REFRESH_INTERVAL);
+      } catch (err) {
+        if (!cancelled) {
+          setError('Failed to connect to backend');
+          setSystemStatus({ status: 'stopped' });
+        }
+      }
+    }
+
+    init();
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
   }, [loadData]);
 
   const handleStart = async () => {
@@ -86,7 +116,54 @@ function LiveDashboard() {
     } catch {}
   };
 
-  const isRunning = systemStatus.status === 'running';
+  // Loading state — waiting for initial status check
+  if (systemStatus === null) {
+    return (
+      <div className="dashboard">
+        <header className="header">
+          <h1>TradeAI — NIFTY Options</h1>
+        </header>
+        <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
+          Checking market status...
+        </div>
+      </div>
+    );
+  }
+
+  // Holiday — show only header + banner, nothing else
+  if (isHoliday) {
+    return (
+      <div className="dashboard">
+        <header className="header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <h1>TradeAI — NIFTY Options</h1>
+            <Link to="/history" style={{ color: 'var(--accent-blue)', textDecoration: 'none', fontSize: '0.85rem', border: '1px solid var(--accent-blue)', padding: '4px 12px', borderRadius: 6 }}>
+              History
+            </Link>
+          </div>
+          <span className="status-badge holiday">
+            <span className="status-dot" />
+            Holiday
+          </span>
+        </header>
+
+        <div className="holiday-banner">
+          <span className="holiday-banner-icon">🏖️</span>
+          <div>
+            <div className="holiday-banner-title">{systemStatus.holiday_message || 'Market holiday today'}</div>
+            {systemStatus.next_trading_day && (
+              <div className="holiday-banner-sub">
+                The system will resume automatically on the next trading day.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const statusClass = isRunning ? 'running' : 'stopped';
+  const statusLabel = isRunning ? 'Running' : 'Stopped';
 
   return (
     <div className="dashboard">
@@ -107,9 +184,9 @@ function LiveDashboard() {
               <div>Cycle #{systemStatus.cycle_count} · Expiry: {systemStatus.expiry || '—'}</div>
             )}
           </div>
-          <span className={`status-badge ${isRunning ? 'running' : 'stopped'}`}>
+          <span className={`status-badge ${statusClass}`}>
             <span className="status-dot" />
-            {isRunning ? 'Running' : 'Stopped'}
+            {statusLabel}
           </span>
           {isRunning ? (
             <button className="btn btn-stop" onClick={handleStop}>Stop</button>
