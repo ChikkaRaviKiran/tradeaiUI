@@ -43,4 +43,10 @@ export const fetchV2TodayTrades = () => api.get('/api/v2/today');
 export const fetchV2Status = () => api.get('/api/v2/status');
 export const fetchPerformanceComparison = () => api.get('/api/performance/comparison');
 
+// Broker Settings
+export const fetchBrokerStatus = () => api.get('/api/broker/status');
+export const testBrokerConnection = () => api.post('/api/broker/test');
+export const updateBrokerCredentials = (creds) => api.post('/api/broker/update-credentials', creds);
+export const reAuthenticateBroker = () => api.post('/api/broker/re-authenticate');
+
 export default api;

@@ -18,6 +18,7 @@ import {
   fetchV2TodayTrades,
   fetchV2Status,
   fetchPerformanceComparison,
+  fetchBrokerStatus,
 } from './api';
 import MarketOverview from './components/MarketOverview';
 import ActiveTrades from './components/ActiveTrades';
@@ -28,6 +29,7 @@ import MarketIntelligence from './components/MarketIntelligence';
 import SystemActivityLog from './components/SystemActivityLog';
 import HistoryDashboard from './components/HistoryDashboard';
 import V2ComparisonPanel from './components/V2ComparisonPanel';
+import BrokerSettings from './components/BrokerSettings';
 
 const REFRESH_INTERVAL = 15000;
 
@@ -47,6 +49,7 @@ function App() {
   const [v2TodayTrades, setV2TodayTrades] = useState([]);
   const [v2Status, setV2Status] = useState(null);
   const [comparison, setComparison] = useState(null);
+  const [brokerStatus, setBrokerStatus] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
@@ -67,6 +70,7 @@ function App() {
         fetchV2TodayTrades(),
         fetchV2Status(),
         fetchPerformanceComparison(),
+        fetchBrokerStatus(),
       ]);
 
       const val = (i) => results[i].status === 'fulfilled' ? results[i].value.data : null;
@@ -85,6 +89,7 @@ function App() {
       if (val(11) !== null) setV2TodayTrades(val(11));
       if (val(12) !== null) setV2Status(val(12));
       if (val(13) !== null) setComparison(val(13));
+      if (val(14) !== null) setBrokerStatus(val(14));
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -162,6 +167,20 @@ function App() {
             {systemStatus.db_connected === false && (
               <span style={{ color: 'var(--accent-red)', marginLeft: 6 }}>· DB Down</span>
             )}
+            {brokerStatus && !brokerStatus.authenticated && brokerStatus.configured && (
+              <span
+                style={{ color: 'var(--accent-yellow)', marginLeft: 6, cursor: 'pointer' }}
+                onClick={() => setTab('settings')}
+                title="Broker not authenticated — click to fix"
+              >· Broker Auth ✗</span>
+            )}
+            {brokerStatus && !brokerStatus.configured && (
+              <span
+                style={{ color: 'var(--accent-red)', marginLeft: 6, cursor: 'pointer' }}
+                onClick={() => setTab('settings')}
+                title="Broker not configured — click to set up"
+              >· Broker ✗</span>
+            )}
           </div>
 
           <button
@@ -235,6 +254,7 @@ function App() {
           ['trades', 'Trades'],
           ['analysis', 'Analysis'],
           ['history', 'History'],
+          ['settings', 'Settings'],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -276,6 +296,10 @@ function App() {
 
       {tab === 'history' && (
         <HistoryDashboard />
+      )}
+
+      {tab === 'settings' && (
+        <SettingsTab />
       )}
     </div>
   );
@@ -511,6 +535,18 @@ function AnalysisTab({ intelligence, onRefresh, recommendations, onRecommendatio
       <section className="section">
         <h2 className="section-title">Strategy Recommendations</h2>
         <RecommendationsPanel recommendations={recommendations} onRecommendationsUpdate={onRecommendationsUpdate} />
+      </section>
+    </>
+  );
+}
+
+/* ─── Settings Tab ───────────────────────────────────────────────────── */
+function SettingsTab() {
+  return (
+    <>
+      <section className="section" style={{ marginTop: 4 }}>
+        <h2 className="section-title">Broker Connection</h2>
+        <BrokerSettings />
       </section>
     </>
   );
