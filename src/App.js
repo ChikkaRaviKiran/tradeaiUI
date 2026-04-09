@@ -14,9 +14,7 @@ import {
   startSystem,
   stopSystem,
   setTradingMode,
-  fetchV2ActiveTrades,
-  fetchV2TodayTrades,
-  fetchV2Status,
+  fetchStrategySelection,
   fetchPerformanceComparison,
   fetchBrokerStatus,
 } from './api';
@@ -28,7 +26,7 @@ import RecommendationsPanel from './components/RecommendationsPanel';
 import MarketIntelligence from './components/MarketIntelligence';
 import SystemActivityLog from './components/SystemActivityLog';
 import HistoryDashboard from './components/HistoryDashboard';
-import V2ComparisonPanel from './components/V2ComparisonPanel';
+import StrategySelectionPanel from './components/StrategySelectionPanel';
 import BrokerSettings from './components/BrokerSettings';
 
 const REFRESH_INTERVAL = 15000;
@@ -45,9 +43,7 @@ function App() {
   const [recommendations, setRecommendations] = useState(null);
   const [intelligence, setIntelligence] = useState(null);
   const [activity, setActivity] = useState(null);
-  const [v2ActiveTrades, setV2ActiveTrades] = useState([]);
-  const [v2TodayTrades, setV2TodayTrades] = useState([]);
-  const [v2Status, setV2Status] = useState(null);
+  const [strategySelection, setStrategySelection] = useState(null);
   const [comparison, setComparison] = useState(null);
   const [brokerStatus, setBrokerStatus] = useState(null);
   const [error, setError] = useState(null);
@@ -66,9 +62,7 @@ function App() {
         fetchRecommendations(),
         fetchIntelligence(),
         fetchSystemActivity(),
-        fetchV2ActiveTrades(),
-        fetchV2TodayTrades(),
-        fetchV2Status(),
+        fetchStrategySelection(),
         fetchPerformanceComparison(),
         fetchBrokerStatus(),
       ]);
@@ -85,11 +79,9 @@ function App() {
       if (val(7) !== null) setRecommendations(val(7));
       if (val(8) !== null) setIntelligence(val(8));
       if (val(9) !== null) setActivity(val(9));
-      if (val(10) !== null) setV2ActiveTrades(val(10));
-      if (val(11) !== null) setV2TodayTrades(val(11));
-      if (val(12) !== null) setV2Status(val(12));
-      if (val(13) !== null) setComparison(val(13));
-      if (val(14) !== null) setBrokerStatus(val(14));
+      if (val(10) !== null) setStrategySelection(val(10));
+      if (val(11) !== null) setComparison(val(11));
+      if (val(12) !== null) setBrokerStatus(val(12));
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -132,10 +124,8 @@ function App() {
   };
 
   const isRunning = systemStatus.status === 'running';
-  const allActive = [...activeTrades, ...v2ActiveTrades.map(t => ({ ...t, _engine: 'v2' }))];
-  const v1Closed = todayTrades.filter((t) => t.status === 'closed');
-  const v2Closed = (v2TodayTrades || []).filter((t) => t.status === 'closed');
-  const allClosed = [...v1Closed, ...v2Closed.map(t => ({ ...t, _engine: 'v2' }))];
+  const allActive = activeTrades;
+  const allClosed = todayTrades.filter((t) => t.status === 'closed');
 
   // Market KPI data
   const niftySnap = allSnapshots.NIFTY;
@@ -244,7 +234,7 @@ function App() {
           sub={intelligence?.fii_dii ? `FII: ${(intelligence.fii_dii.fii_net || 0) >= 0 ? '+' : ''}${(intelligence.fii_dii.fii_net || 0).toFixed(0)} · DII: ${(intelligence.fii_dii.dii_net || 0) >= 0 ? '+' : ''}${(intelligence.fii_dii.dii_net || 0).toFixed(0)}` : ''} />
         <KPI label="Active Trades" value={allActive.length}
           color={allActive.length > 0 ? 'var(--accent-blue)' : 'var(--text-muted)'}
-          sub={`V1: ${activeTrades.length} · V2: ${v2ActiveTrades.length}`} />
+          sub={strategySelection?.active_strategies?.length ? `${strategySelection.active_strategies.length} strategies` : ''} />
       </div>
 
       {/* ── Tab Navigation ─────────────────────────────────────── */}
@@ -281,8 +271,7 @@ function App() {
         <TradesTab
           allActive={allActive} allClosed={allClosed}
           performance={performance}
-          v2Status={v2Status} comparison={comparison}
-          v2ActiveTrades={v2ActiveTrades} v2TodayTrades={v2TodayTrades}
+          strategySelection={strategySelection} comparison={comparison}
           activity={activity}
         />
       )}
@@ -459,7 +448,7 @@ function DashboardTab({ allSnapshots, globalIndices, intelligence, alerts }) {
 }
 
 /* ─── Trades Tab ─────────────────────────────────────────────────────── */
-function TradesTab({ allActive, allClosed, performance, v2Status, comparison, v2ActiveTrades, v2TodayTrades, activity }) {
+function TradesTab({ allActive, allClosed, performance, strategySelection, comparison, activity }) {
   const p = performance || {};
 
   return (
@@ -494,25 +483,22 @@ function TradesTab({ allActive, allClosed, performance, v2Status, comparison, v2
         </div>
       </div>
 
+      {/* Strategy Selection */}
+      <section className="section">
+        <h2 className="section-title">Strategy Selection</h2>
+        <StrategySelectionPanel selection={strategySelection} comparison={comparison} />
+      </section>
+
       {/* Active Trades */}
       <section className="section">
         <h2 className="section-title">Active Trades</h2>
-        <ActiveTrades trades={allActive} showEngine />
+        <ActiveTrades trades={allActive} />
       </section>
 
       {/* Completed Trades */}
       <section className="section">
         <h2 className="section-title">Completed Trades</h2>
-        <CompletedTrades trades={allClosed} showEngine />
-      </section>
-
-      {/* V2 Engine Comparison */}
-      <section className="section">
-        <h2 className="section-title">V2 Engine — Comparison</h2>
-        <V2ComparisonPanel
-          v2Status={v2Status} comparison={comparison}
-          v2ActiveTrades={v2ActiveTrades} v2TodayTrades={v2TodayTrades}
-        />
+        <CompletedTrades trades={allClosed} />
       </section>
 
       {/* System Activity */}

@@ -37,10 +37,8 @@ export const fetchIntelligence = () => api.get('/api/intelligence');
 export const fetchIntelligenceNews = (days = 1) => api.get(`/api/intelligence/news?days=${encodeURIComponent(days)}`);
 export const refreshIntelligence = () => api.post('/api/intelligence/refresh');
 
-// V2 Engine
-export const fetchV2ActiveTrades = () => api.get('/api/v2/active');
-export const fetchV2TodayTrades = () => api.get('/api/v2/today');
-export const fetchV2Status = () => api.get('/api/v2/status');
+// Strategy Selection
+export const fetchStrategySelection = () => api.get('/api/strategy-selection');
 export const fetchPerformanceComparison = () => api.get('/api/performance/comparison');
 
 // Broker Settings

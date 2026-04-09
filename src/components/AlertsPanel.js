@@ -88,9 +88,6 @@ function AlertsPanel({ alerts: defaultAlerts, compact }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
                 <span className="alert-title">
                   {alert.title}
-                  {alert.engine === 'v2' && (
-                    <span className="tag tag-v2" style={{ marginLeft: 6, fontSize: '0.6rem', padding: '1px 5px' }}>V2</span>
-                  )}
                 </span>
                 <span className="alert-time">
                   {new Date(alert.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}

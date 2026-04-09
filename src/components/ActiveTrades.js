@@ -1,6 +1,6 @@
 import React from 'react';
 
-function ActiveTrades({ trades, showEngine }) {
+function ActiveTrades({ trades }) {
   if (!trades || trades.length === 0) {
     return (
       <div className="card">
@@ -17,7 +17,6 @@ function ActiveTrades({ trades, showEngine }) {
         <thead>
           <tr>
             <th>Time</th>
-            {showEngine && <th>Engine</th>}
             <th>Symbol</th>
             <th>Strategy</th>
             <th>Type</th>
@@ -33,13 +32,6 @@ function ActiveTrades({ trades, showEngine }) {
           {trades.map((trade) => (
             <tr key={trade.trade_id}>
               <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{trade.time || '—'}</td>
-              {showEngine && (
-                <td>
-                  <span className={`tag ${trade._engine === 'v2' || trade.engine === 'v2' ? 'tag-v2' : 'tag-v1'}`}>
-                    {trade._engine === 'v2' || trade.engine === 'v2' ? 'V2' : 'V1'}
-                  </span>
-                </td>
-              )}
               <td style={{ fontWeight: 600 }}>{trade.symbol}</td>
               <td><span className="tag tag-strategy">{trade.strategy}</span></td>
               <td>
