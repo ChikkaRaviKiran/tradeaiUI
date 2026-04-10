@@ -28,6 +28,7 @@ import SystemActivityLog from './components/SystemActivityLog';
 import HistoryDashboard from './components/HistoryDashboard';
 import StrategySelectionPanel from './components/StrategySelectionPanel';
 import BrokerSettings from './components/BrokerSettings';
+import StrategyAnalytics from './components/StrategyAnalytics';
 
 const REFRESH_INTERVAL = 15000;
 
@@ -242,6 +243,7 @@ function App() {
         {[
           ['market', 'Market'],
           ['trades', 'Trades'],
+          ['strategy', 'Strategy'],
           ['analysis', 'Analysis'],
           ['history', 'History'],
           ['settings', 'Settings'],
@@ -274,6 +276,10 @@ function App() {
           strategySelection={strategySelection} comparison={comparison}
           activity={activity}
         />
+      )}
+
+      {tab === 'strategy' && (
+        <StrategyAnalytics />
       )}
 
       {tab === 'analysis' && (

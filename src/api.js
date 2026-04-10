@@ -47,4 +47,7 @@ export const testBrokerConnection = () => api.post('/api/broker/test');
 export const updateBrokerCredentials = (creds) => api.post('/api/broker/update-credentials', creds);
 export const reAuthenticateBroker = () => api.post('/api/broker/re-authenticate');
 
+// Strategy Analytics (backtest results, rankings, today's plan)
+export const fetchStrategyAnalytics = () => api.get('/api/strategy-analytics');
+
 export default api;
