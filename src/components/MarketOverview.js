@@ -1,6 +1,6 @@
 import React from 'react';
 
-const INSTRUMENTS = ['NIFTY', 'BANKNIFTY', 'FINNIFTY'];
+const INSTRUMENTS = ['NIFTY', 'SENSEX'];
 
 const regimeColors = {
   trending: 'var(--accent-green)',
@@ -129,7 +129,7 @@ function MarketOverview({ allSnapshots = {}, globalIndices = [] }) {
   }
 
   // Global bias from any available snapshot (they share the same global bias)
-  const anySnap = snapshotsMap.NIFTY || snapshotsMap.BANKNIFTY || snapshotsMap.FINNIFTY;
+  const anySnap = snapshotsMap.NIFTY || snapshotsMap.SENSEX;
 
   return (
     <>
@@ -151,8 +151,8 @@ function MarketOverview({ allSnapshots = {}, globalIndices = [] }) {
         </div>
       )}
 
-      {/* 3 Instrument Cards Side by Side */}
-      <div className="grid grid-3">
+      {/* Instrument Cards Side by Side */}
+      <div className="grid grid-2">
         {INSTRUMENTS.map((sym) => (
           <InstrumentCard key={sym} snap={snapshotsMap[sym]} name={sym} />
         ))}

@@ -130,9 +130,9 @@ function App() {
 
   // Market KPI data
   const niftySnap = allSnapshots.NIFTY;
-  const bnSnap = allSnapshots.BANKNIFTY;
+  const sensexSnap = allSnapshots.SENSEX;
   const niftyChange = niftySnap?.prev_day_close ? (((niftySnap.price || 0) - niftySnap.prev_day_close) / niftySnap.prev_day_close * 100) : null;
-  const bnChange = bnSnap?.prev_day_close ? (((bnSnap.price || 0) - bnSnap.prev_day_close) / bnSnap.prev_day_close * 100) : null;
+  const sensexChange = sensexSnap?.prev_day_close ? (((sensexSnap.price || 0) - sensexSnap.prev_day_close) / sensexSnap.prev_day_close * 100) : null;
   const vixIdx = globalIndices.find(i => i.symbol?.includes('VIX'));
   const aiBias = intelligence?.insight?.market_bias;
   const aiConf = intelligence?.insight?.confidence;
@@ -217,10 +217,10 @@ function App() {
           value={(niftySnap?.price || 0) > 0 ? (niftySnap.price).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
           color={niftyChange != null ? (niftyChange >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-primary)'}
           sub={niftyChange != null ? `${niftyChange >= 0 ? '+' : ''}${niftyChange.toFixed(2)}%` : ''} />
-        <KPI label="BANKNIFTY"
-          value={(bnSnap?.price || 0) > 0 ? (bnSnap.price).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
-          color={bnChange != null ? (bnChange >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-primary)'}
-          sub={bnChange != null ? `${bnChange >= 0 ? '+' : ''}${bnChange.toFixed(2)}%` : ''} />
+        <KPI label="SENSEX"
+          value={(sensexSnap?.price || 0) > 0 ? (sensexSnap.price).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
+          color={sensexChange != null ? (sensexChange >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-primary)'}
+          sub={sensexChange != null ? `${sensexChange >= 0 ? '+' : ''}${sensexChange.toFixed(2)}%` : ''} />
         <KPI label="Market Bias"
           value={(aiBias || '—').toUpperCase()}
           color={aiBias === 'bullish' ? 'var(--accent-green)' : aiBias === 'bearish' ? 'var(--accent-red)' : 'var(--accent-yellow)'}
