@@ -29,6 +29,7 @@ import HistoryDashboard from './components/HistoryDashboard';
 import StrategySelectionPanel from './components/StrategySelectionPanel';
 import BrokerSettings from './components/BrokerSettings';
 import StrategyAnalytics from './components/StrategyAnalytics';
+import BacktestPanel from './components/BacktestPanel';
 
 const REFRESH_INTERVAL = 15000;
 
@@ -246,6 +247,7 @@ function App() {
           ['strategy', 'Strategy'],
           ['analysis', 'Analysis'],
           ['history', 'History'],
+          ['backtest', 'Backtest'],
           ['settings', 'Settings'],
         ].map(([key, label]) => (
           <button
@@ -291,6 +293,13 @@ function App() {
 
       {tab === 'history' && (
         <HistoryDashboard />
+      )}
+
+      {tab === 'backtest' && (
+        <section className="section" style={{ marginTop: 4 }}>
+          <h2 className="section-title">Backtest Simulator</h2>
+          <BacktestPanel />
+        </section>
       )}
 
       {tab === 'settings' && (

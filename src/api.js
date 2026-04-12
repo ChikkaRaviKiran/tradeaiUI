@@ -50,4 +50,12 @@ export const reAuthenticateBroker = () => api.post('/api/broker/re-authenticate'
 // Strategy Analytics (backtest results, rankings, today's plan)
 export const fetchStrategyAnalytics = () => api.get('/api/strategy-analytics');
 
+// Backtest
+export const fetchBacktestConfig = () => api.get('/api/backtest/config');
+export const runBacktest = (params) => api.post('/api/backtest/run', params, { timeout: 30000 });
+export const fetchBacktestStatus = (jobId) => api.get(`/api/backtest/status/${encodeURIComponent(jobId)}`);
+export const fetchBacktestJobs = () => api.get('/api/backtest/jobs');
+export const exportBacktestExcel = (jobId) =>
+  api.get(`/api/backtest/export/${encodeURIComponent(jobId)}`, { responseType: 'blob', timeout: 60000 });
+
 export default api;
