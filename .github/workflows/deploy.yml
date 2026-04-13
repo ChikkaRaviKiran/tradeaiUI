@@ -97,6 +97,7 @@ jobs:
 
             # Pull frontend image (clean stale state from interrupted pulls)
             sudo docker system prune -f 2>/dev/null || true
+            sudo rm -rf /var/lib/docker/containerd/daemon/io.containerd.content.v1.content/ingest/* 2>/dev/null || true
             echo "Pulling ${FRONTEND_IMAGE}:${FRONTEND_TAG}"
             sudo docker pull "${FRONTEND_IMAGE}:${FRONTEND_TAG}"
 
