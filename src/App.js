@@ -2,6 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   fetchAllSnapshots,
   fetchGlobalIndices,
+  fetchActiveTrades,
+  fetchTodayTrades,
+  fetchPerformance,
+  fetchAlerts,
   fetchSystemStatus,
   fetchIntelligence,
   refreshIntelligence,
@@ -11,6 +15,9 @@ import {
   fetchBrokerStatus,
 } from './api';
 import MarketOverview from './components/MarketOverview';
+import ActiveTrades from './components/ActiveTrades';
+import CompletedTrades from './components/CompletedTrades';
+import AlertsPanel from './components/AlertsPanel';
 import BrokerSettings from './components/BrokerSettings';
 import BacktestPanel from './components/BacktestPanel';
 
@@ -20,6 +27,10 @@ function App() {
   const [tab, setTab] = useState('market');
   const [allSnapshots, setAllSnapshots] = useState({});
   const [globalIndices, setGlobalIndices] = useState([]);
+  const [activeTrades, setActiveTrades] = useState([]);
+  const [todayTrades, setTodayTrades] = useState([]);
+  const [performance, setPerformance] = useState(null);
+  const [alerts, setAlerts] = useState([]);
   const [systemStatus, setSystemStatus] = useState({ status: 'stopped' });
   const [intelligence, setIntelligence] = useState(null);
   const [brokerStatus, setBrokerStatus] = useState(null);
@@ -31,6 +42,10 @@ function App() {
       const results = await Promise.allSettled([
         fetchAllSnapshots(),
         fetchGlobalIndices(),
+        fetchActiveTrades(),
+        fetchTodayTrades(),
+        fetchPerformance(),
+        fetchAlerts(),
         fetchSystemStatus(),
         fetchIntelligence(),
         fetchBrokerStatus(),
@@ -40,9 +55,13 @@ function App() {
 
       if (val(0) !== null) setAllSnapshots(val(0) || {});
       if (val(1) !== null) setGlobalIndices(val(1));
-      if (val(2) !== null) setSystemStatus(val(2));
-      if (val(3) !== null) setIntelligence(val(3));
-      if (val(4) !== null) setBrokerStatus(val(4));
+      if (val(2) !== null) setActiveTrades(val(2));
+      if (val(3) !== null) setTodayTrades(val(3));
+      if (val(4) !== null) setPerformance(val(4));
+      if (val(5) !== null) setAlerts(val(5));
+      if (val(6) !== null) setSystemStatus(val(6));
+      if (val(7) !== null) setIntelligence(val(7));
+      if (val(8) !== null) setBrokerStatus(val(8));
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -85,6 +104,8 @@ function App() {
   };
 
   const isRunning = systemStatus.status === 'running';
+  const allActive = activeTrades;
+  const allClosed = todayTrades.filter((t) => t.status === 'closed');
 
   // Market KPI data
   const niftySnap = allSnapshots.NIFTY;
@@ -191,15 +212,16 @@ function App() {
           value={netInst != null ? `${netInst >= 0 ? '+' : ''}${netInst.toFixed(0)} Cr` : '—'}
           color={netInst > 0 ? 'var(--accent-green)' : netInst < 0 ? 'var(--accent-red)' : 'var(--text-muted)'}
           sub={intelligence?.fii_dii ? `FII: ${(intelligence.fii_dii.fii_net || 0) >= 0 ? '+' : ''}${(intelligence.fii_dii.fii_net || 0).toFixed(0)} · DII: ${(intelligence.fii_dii.dii_net || 0) >= 0 ? '+' : ''}${(intelligence.fii_dii.dii_net || 0).toFixed(0)}` : ''} />
-        <KPI label="Active Trades" value="—"
-          color="var(--text-muted)"
-          sub="MOB Backtest Mode" />
+        <KPI label="Active Trades" value={allActive.length}
+          color={allActive.length > 0 ? 'var(--accent-blue)' : 'var(--text-muted)'}
+          sub={allActive.length > 0 ? 'MOB Strategy' : ''} />
       </div>
 
       {/* ── Tab Navigation ─────────────────────────────────────── */}
       <nav className="tab-nav">
         {[
           ['market', 'Market'],
+          ['trades', 'Trades'],
           ['backtest', 'Backtest'],
           ['settings', 'Settings'],
         ].map(([key, label]) => (
@@ -209,6 +231,9 @@ function App() {
             onClick={() => setTab(key)}
           >
             {label}
+            {key === 'trades' && allActive.length > 0 && (
+              <span className="tab-badge">{allActive.length}</span>
+            )}
           </button>
         ))}
       </nav>
@@ -217,7 +242,14 @@ function App() {
       {tab === 'market' && (
         <DashboardTab
           allSnapshots={allSnapshots} globalIndices={globalIndices}
-          intelligence={intelligence}
+          intelligence={intelligence} alerts={alerts}
+        />
+      )}
+
+      {tab === 'trades' && (
+        <TradesTab
+          allActive={allActive} allClosed={allClosed}
+          performance={performance}
         />
       )}
 
@@ -247,7 +279,7 @@ function KPI({ label, value, color, sub }) {
 }
 
 /* ─── Dashboard Tab (Market-Focused) ─────────────────────────────────── */
-function DashboardTab({ allSnapshots, globalIndices, intelligence }) {
+function DashboardTab({ allSnapshots, globalIndices, intelligence, alerts }) {
   const { insight, fii_dii, breadth } = intelligence || {};
   const keyLevels = insight?.key_levels || {};
 
@@ -258,7 +290,7 @@ function DashboardTab({ allSnapshots, globalIndices, intelligence }) {
         <MarketOverview allSnapshots={allSnapshots} globalIndices={globalIndices} />
       </section>
 
-      {/* Market Context */}
+      {/* Market Context + Alerts sidebar */}
       <div className="dashboard-main">
         <div>
           {/* FII/DII, Breadth, Key Levels */}
@@ -377,7 +409,64 @@ function DashboardTab({ allSnapshots, globalIndices, intelligence }) {
             </div>
           )}
         </div>
+
+        {/* Right sidebar: Alerts */}
+        <div>
+          <h2 className="section-title" style={{ marginTop: 0 }}>Alerts</h2>
+          <AlertsPanel alerts={alerts} compact />
+        </div>
       </div>
+    </>
+  );
+}
+
+/* ─── Trades Tab ─────────────────────────────────────────────────────── */
+function TradesTab({ allActive, allClosed, performance }) {
+  const p = performance || {};
+
+  return (
+    <>
+      {/* Performance Summary Bar */}
+      <div className="card" style={{ marginTop: 4, marginBottom: 16, padding: '12px 20px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
+          <div>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Today P&L</span>
+            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: (p.total_pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+              ₹{(p.total_pnl || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            </div>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Win Rate</span>
+            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: (p.win_rate || 0) >= 50 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+              {(p.win_rate || 0).toFixed(1)}%
+            </div>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Trades</span>
+            <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+              {p.total_trades || 0} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({p.winning_trades || 0}W / {p.losing_trades || 0}L)</span>
+            </div>
+          </div>
+          <div>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Profit Factor</span>
+            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: (p.profit_factor || 0) >= 1 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+              {(p.profit_factor || 0).toFixed(2)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Active Trades */}
+      <section className="section">
+        <h2 className="section-title">Active Trades</h2>
+        <ActiveTrades trades={allActive} />
+      </section>
+
+      {/* Completed Trades */}
+      <section className="section">
+        <h2 className="section-title">Completed Trades</h2>
+        <CompletedTrades trades={allClosed} />
+      </section>
     </>
   );
 }

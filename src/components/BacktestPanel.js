@@ -304,7 +304,7 @@ function BacktestPanel() {
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th><th>Instrument</th><th>Dir</th>
+                    <th>Date</th><th>Instrument</th><th>Symbol</th><th>Dir</th>
                     <th>Strike</th><th>Mom</th><th>Entry</th><th>Exit</th><th>PnL</th>
                     <th>PnL %</th><th>Exit Reason</th><th>Result</th>
                   </tr>
@@ -314,6 +314,7 @@ function BacktestPanel() {
                     <tr key={i}>
                       <td style={{ fontSize: 11 }}>{t.Date}</td>
                       <td>{t.Instrument}</td>
+                      <td style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-blue)' }}>{t.Symbol || ''}</td>
                       <td><span style={{ color: t.Direction === 'CE' ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>{t.Direction}</span></td>
                       <td style={{ fontWeight: 600 }}>{t.Strike}</td>
                       <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t['Momentum Ratio']}x</td>
