@@ -2,33 +2,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   fetchAllSnapshots,
   fetchGlobalIndices,
-  fetchActiveTrades,
-  fetchTodayTrades,
-  fetchPerformance,
-  fetchAlerts,
   fetchSystemStatus,
-  fetchSystemActivity,
-  fetchRecommendations,
   fetchIntelligence,
   refreshIntelligence,
   startSystem,
   stopSystem,
   setTradingMode,
-  fetchStrategySelection,
-  fetchPerformanceComparison,
   fetchBrokerStatus,
 } from './api';
 import MarketOverview from './components/MarketOverview';
-import ActiveTrades from './components/ActiveTrades';
-import CompletedTrades from './components/CompletedTrades';
-import AlertsPanel from './components/AlertsPanel';
-import RecommendationsPanel from './components/RecommendationsPanel';
-import MarketIntelligence from './components/MarketIntelligence';
-import SystemActivityLog from './components/SystemActivityLog';
-import HistoryDashboard from './components/HistoryDashboard';
-import StrategySelectionPanel from './components/StrategySelectionPanel';
 import BrokerSettings from './components/BrokerSettings';
-import StrategyAnalytics from './components/StrategyAnalytics';
 import BacktestPanel from './components/BacktestPanel';
 
 const REFRESH_INTERVAL = 15000;
@@ -37,16 +20,8 @@ function App() {
   const [tab, setTab] = useState('market');
   const [allSnapshots, setAllSnapshots] = useState({});
   const [globalIndices, setGlobalIndices] = useState([]);
-  const [activeTrades, setActiveTrades] = useState([]);
-  const [todayTrades, setTodayTrades] = useState([]);
-  const [performance, setPerformance] = useState(null);
-  const [alerts, setAlerts] = useState([]);
   const [systemStatus, setSystemStatus] = useState({ status: 'stopped' });
-  const [recommendations, setRecommendations] = useState(null);
   const [intelligence, setIntelligence] = useState(null);
-  const [activity, setActivity] = useState(null);
-  const [strategySelection, setStrategySelection] = useState(null);
-  const [comparison, setComparison] = useState(null);
   const [brokerStatus, setBrokerStatus] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -55,35 +30,19 @@ function App() {
     try {
       const results = await Promise.allSettled([
         fetchAllSnapshots(),
-        fetchActiveTrades(),
-        fetchTodayTrades(),
-        fetchPerformance(),
-        fetchAlerts(),
-        fetchSystemStatus(),
         fetchGlobalIndices(),
-        fetchRecommendations(),
+        fetchSystemStatus(),
         fetchIntelligence(),
-        fetchSystemActivity(),
-        fetchStrategySelection(),
-        fetchPerformanceComparison(),
         fetchBrokerStatus(),
       ]);
 
       const val = (i) => results[i].status === 'fulfilled' ? results[i].value.data : null;
 
       if (val(0) !== null) setAllSnapshots(val(0) || {});
-      if (val(1) !== null) setActiveTrades(val(1));
-      if (val(2) !== null) setTodayTrades(val(2));
-      if (val(3) !== null) setPerformance(val(3));
-      if (val(4) !== null) setAlerts(val(4));
-      if (val(5) !== null) setSystemStatus(val(5));
-      if (val(6) !== null) setGlobalIndices(val(6));
-      if (val(7) !== null) setRecommendations(val(7));
-      if (val(8) !== null) setIntelligence(val(8));
-      if (val(9) !== null) setActivity(val(9));
-      if (val(10) !== null) setStrategySelection(val(10));
-      if (val(11) !== null) setComparison(val(11));
-      if (val(12) !== null) setBrokerStatus(val(12));
+      if (val(1) !== null) setGlobalIndices(val(1));
+      if (val(2) !== null) setSystemStatus(val(2));
+      if (val(3) !== null) setIntelligence(val(3));
+      if (val(4) !== null) setBrokerStatus(val(4));
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -126,8 +85,6 @@ function App() {
   };
 
   const isRunning = systemStatus.status === 'running';
-  const allActive = activeTrades;
-  const allClosed = todayTrades.filter((t) => t.status === 'closed');
 
   // Market KPI data
   const niftySnap = allSnapshots.NIFTY;
@@ -234,19 +191,15 @@ function App() {
           value={netInst != null ? `${netInst >= 0 ? '+' : ''}${netInst.toFixed(0)} Cr` : '—'}
           color={netInst > 0 ? 'var(--accent-green)' : netInst < 0 ? 'var(--accent-red)' : 'var(--text-muted)'}
           sub={intelligence?.fii_dii ? `FII: ${(intelligence.fii_dii.fii_net || 0) >= 0 ? '+' : ''}${(intelligence.fii_dii.fii_net || 0).toFixed(0)} · DII: ${(intelligence.fii_dii.dii_net || 0) >= 0 ? '+' : ''}${(intelligence.fii_dii.dii_net || 0).toFixed(0)}` : ''} />
-        <KPI label="Active Trades" value={allActive.length}
-          color={allActive.length > 0 ? 'var(--accent-blue)' : 'var(--text-muted)'}
-          sub={strategySelection?.active_strategies?.length ? `${strategySelection.active_strategies.length} strategies` : ''} />
+        <KPI label="Active Trades" value="—"
+          color="var(--text-muted)"
+          sub="MOB Backtest Mode" />
       </div>
 
       {/* ── Tab Navigation ─────────────────────────────────────── */}
       <nav className="tab-nav">
         {[
           ['market', 'Market'],
-          ['trades', 'Trades'],
-          ['strategy', 'Strategy'],
-          ['analysis', 'Analysis'],
-          ['history', 'History'],
           ['backtest', 'Backtest'],
           ['settings', 'Settings'],
         ].map(([key, label]) => (
@@ -256,9 +209,6 @@ function App() {
             onClick={() => setTab(key)}
           >
             {label}
-            {key === 'trades' && allActive.length > 0 && (
-              <span className="tab-badge">{allActive.length}</span>
-            )}
           </button>
         ))}
       </nav>
@@ -267,32 +217,8 @@ function App() {
       {tab === 'market' && (
         <DashboardTab
           allSnapshots={allSnapshots} globalIndices={globalIndices}
-          intelligence={intelligence} alerts={alerts}
+          intelligence={intelligence}
         />
-      )}
-
-      {tab === 'trades' && (
-        <TradesTab
-          allActive={allActive} allClosed={allClosed}
-          performance={performance}
-          strategySelection={strategySelection} comparison={comparison}
-          activity={activity}
-        />
-      )}
-
-      {tab === 'strategy' && (
-        <StrategyAnalytics />
-      )}
-
-      {tab === 'analysis' && (
-        <AnalysisTab
-          intelligence={intelligence} onRefresh={handleRefreshIntelligence}
-          recommendations={recommendations} onRecommendationsUpdate={setRecommendations}
-        />
-      )}
-
-      {tab === 'history' && (
-        <HistoryDashboard />
       )}
 
       {tab === 'backtest' && (
@@ -321,7 +247,7 @@ function KPI({ label, value, color, sub }) {
 }
 
 /* ─── Dashboard Tab (Market-Focused) ─────────────────────────────────── */
-function DashboardTab({ allSnapshots, globalIndices, intelligence, alerts }) {
+function DashboardTab({ allSnapshots, globalIndices, intelligence }) {
   const { insight, fii_dii, breadth } = intelligence || {};
   const keyLevels = insight?.key_levels || {};
 
@@ -332,7 +258,7 @@ function DashboardTab({ allSnapshots, globalIndices, intelligence, alerts }) {
         <MarketOverview allSnapshots={allSnapshots} globalIndices={globalIndices} />
       </section>
 
-      {/* Market Context + Alerts sidebar */}
+      {/* Market Context */}
       <div className="dashboard-main">
         <div>
           {/* FII/DII, Breadth, Key Levels */}
@@ -451,92 +377,7 @@ function DashboardTab({ allSnapshots, globalIndices, intelligence, alerts }) {
             </div>
           )}
         </div>
-
-        {/* Right sidebar: Alerts */}
-        <div>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Alerts</h2>
-          <AlertsPanel alerts={alerts} compact />
-        </div>
       </div>
-    </>
-  );
-}
-
-/* ─── Trades Tab ─────────────────────────────────────────────────────── */
-function TradesTab({ allActive, allClosed, performance, strategySelection, comparison, activity }) {
-  const p = performance || {};
-
-  return (
-    <>
-      {/* Performance Summary Bar */}
-      <div className="card" style={{ marginTop: 4, marginBottom: 16, padding: '12px 20px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
-          <div>
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Today P&L</span>
-            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: (p.total_pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              ₹{(p.total_pnl || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            </div>
-          </div>
-          <div>
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Win Rate</span>
-            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: (p.win_rate || 0) >= 50 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              {(p.win_rate || 0).toFixed(1)}%
-            </div>
-          </div>
-          <div>
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Trades</span>
-            <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-              {p.total_trades || 0} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({p.winning_trades || 0}W / {p.losing_trades || 0}L)</span>
-            </div>
-          </div>
-          <div>
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Profit Factor</span>
-            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: (p.profit_factor || 0) >= 1 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              {(p.profit_factor || 0).toFixed(2)}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Strategy Selection */}
-      <section className="section">
-        <h2 className="section-title">Strategy Selection</h2>
-        <StrategySelectionPanel selection={strategySelection} comparison={comparison} />
-      </section>
-
-      {/* Active Trades */}
-      <section className="section">
-        <h2 className="section-title">Active Trades</h2>
-        <ActiveTrades trades={allActive} />
-      </section>
-
-      {/* Completed Trades */}
-      <section className="section">
-        <h2 className="section-title">Completed Trades</h2>
-        <CompletedTrades trades={allClosed} />
-      </section>
-
-      {/* System Activity */}
-      <section className="section">
-        <SystemActivityLog activity={activity} />
-      </section>
-    </>
-  );
-}
-
-/* ─── Analysis Tab ───────────────────────────────────────────────────── */
-function AnalysisTab({ intelligence, onRefresh, recommendations, onRecommendationsUpdate }) {
-  return (
-    <>
-      <section className="section" style={{ marginTop: 4 }}>
-        <h2 className="section-title">Market Intelligence</h2>
-        <MarketIntelligence intelligence={intelligence} onRefresh={onRefresh} />
-      </section>
-
-      <section className="section">
-        <h2 className="section-title">Strategy Recommendations</h2>
-        <RecommendationsPanel recommendations={recommendations} onRecommendationsUpdate={onRecommendationsUpdate} />
-      </section>
     </>
   );
 }

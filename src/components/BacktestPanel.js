@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  fetchBacktestConfig,
   runBacktest,
   fetchBacktestStatus,
   fetchBacktestJobs,
@@ -8,11 +7,8 @@ import {
 } from '../api';
 
 function BacktestPanel() {
-  const [config, setConfig] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [selectedInstruments, setSelectedInstruments] = useState([]);
-  const [selectedStrategies, setSelectedStrategies] = useState([]);
   const [running, setRunning] = useState(false);
   const [jobId, setJobId] = useState(null);
   const [progress, setProgress] = useState(null);
@@ -22,20 +18,13 @@ function BacktestPanel() {
   const [activeResultTab, setActiveResultTab] = useState('summary');
   const pollRef = useRef(null);
 
-  // Load config + jobs on mount
+  // Default date range: last 2 weeks
   useEffect(() => {
-    fetchBacktestConfig().then((r) => {
-      setConfig(r.data);
-      // Default: all instruments and strategies selected
-      setSelectedInstruments(r.data.instruments.map((i) => i.symbol));
-      setSelectedStrategies([...r.data.strategies]);
-      // Default date range: last 3 months
-      const end = new Date();
-      const start = new Date();
-      start.setMonth(start.getMonth() - 3);
-      setEndDate(end.toISOString().split('T')[0]);
-      setStartDate(start.toISOString().split('T')[0]);
-    }).catch(() => {});
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 14);
+    setEndDate(end.toISOString().split('T')[0]);
+    setStartDate(start.toISOString().split('T')[0]);
     fetchBacktestJobs().then((r) => setJobs(r.data || [])).catch(() => {});
   }, []);
 
@@ -71,23 +60,9 @@ function BacktestPanel() {
     setRunning(true);
 
     try {
-      const payload = {
-        start_date: startDate,
-        end_date: endDate,
-      };
-      // Only send if not "all" are selected
-      if (config && selectedInstruments.length < config.instruments.length) {
-        payload.instruments = selectedInstruments;
-      }
-      if (config && selectedStrategies.length < config.strategies.length) {
-        payload.strategies = selectedStrategies;
-      }
-
-      const res = await runBacktest(payload);
+      const res = await runBacktest({ start_date: startDate, end_date: endDate });
       const jid = res.data.job_id;
       setJobId(jid);
-
-      // Start polling
       pollRef.current = setInterval(() => pollStatus(jid), 2000);
     } catch (e) {
       setError(e?.response?.data?.detail || 'Failed to start backtest');
@@ -101,7 +76,7 @@ function BacktestPanel() {
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `backtest_${exportJobId || jobId}.xlsx`);
+      link.setAttribute('download', `mob_backtest_${exportJobId || jobId}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -125,43 +100,30 @@ function BacktestPanel() {
     }
   };
 
-  const toggleInstrument = (sym) => {
-    setSelectedInstruments((prev) =>
-      prev.includes(sym) ? prev.filter((s) => s !== sym) : [...prev, sym]
-    );
-  };
-
-  const toggleStrategy = (name) => {
-    setSelectedStrategies((prev) =>
-      prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name]
-    );
-  };
-
   useEffect(() => {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
 
-  if (!config) {
-    return (
-      <div className="card" style={{ padding: 20, textAlign: 'center' }}>
-        <span style={{ color: 'var(--text-secondary)' }}>Loading backtest configuration...</span>
-      </div>
-    );
-  }
-
   return (
     <div>
-      {/* ── Config Panel ── */}
+      {/* ── MOB Strategy Header + Config ── */}
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div className="card-title" style={{ margin: 0 }}>Backtest Configuration</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="card-title" style={{ margin: 0 }}>MOB Strategy Backtest</div>
+            <span style={{
+              padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+              background: 'rgba(16,185,129,0.15)', color: 'var(--accent-green)',
+              border: '1px solid rgba(16,185,129,0.3)', letterSpacing: '0.5px',
+            }}>MOMENTUM OPTION BUYING</span>
+          </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <span className="tag tag-strategy" style={{ fontSize: 10 }}>Capital: ₹{config.initial_capital?.toLocaleString('en-IN')}</span>
-            <span className="tag tag-strategy" style={{ fontSize: 10 }}>Max {config.max_trades_per_day} trades/day</span>
-            <span className="tag tag-strategy" style={{ fontSize: 10 }}>Max {config.max_concurrent_positions} concurrent</span>
-            <span className="tag tag-strategy" style={{ fontSize: 10 }}>{config.max_daily_loss_pct}% daily loss cap</span>
+            <span className="tag tag-strategy" style={{ fontSize: 10 }}>Capital: ₹1,00,000</span>
+            <span className="tag tag-strategy" style={{ fontSize: 10 }}>SL: 20%</span>
+            <span className="tag tag-strategy" style={{ fontSize: 10 }}>Max 2 trades/day</span>
+            <span className="tag tag-strategy" style={{ fontSize: 10 }}>1 per instrument</span>
           </div>
         </div>
 
@@ -197,15 +159,15 @@ function BacktestPanel() {
             </label>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {[
-                ['1M', 1], ['3M', 3], ['6M', 6], ['1Y', 12],
-              ].map(([label, months]) => (
+                ['1W', 7], ['2W', 14], ['1M', 30], ['3M', 90], ['6M', 180],
+              ].map(([label, days]) => (
                 <button
                   key={label}
                   disabled={running}
                   onClick={() => {
                     const end = new Date();
                     const start = new Date();
-                    start.setMonth(start.getMonth() - months);
+                    start.setDate(start.getDate() - days);
                     setStartDate(start.toISOString().split('T')[0]);
                     setEndDate(end.toISOString().split('T')[0]);
                   }}
@@ -218,52 +180,13 @@ function BacktestPanel() {
           </div>
         </div>
 
-        {/* Instruments */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>
-            Instruments
-          </label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {config.instruments.map((inst) => (
-              <button
-                key={inst.symbol}
-                disabled={running}
-                onClick={() => toggleInstrument(inst.symbol)}
-                style={{
-                  ...chipStyle,
-                  background: selectedInstruments.includes(inst.symbol) ? 'rgba(59,130,246,0.2)' : 'rgba(107,114,128,0.1)',
-                  color: selectedInstruments.includes(inst.symbol) ? 'var(--accent-blue)' : 'var(--text-secondary)',
-                  borderColor: selectedInstruments.includes(inst.symbol) ? 'rgba(59,130,246,0.4)' : 'transparent',
-                }}
-              >
-                {inst.symbol}
-                <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 4 }}>Lot:{inst.lot_size}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Strategies */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>
-            Strategies
-          </label>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {config.strategies.map((name) => (
-              <button
-                key={name}
-                disabled={running}
-                onClick={() => toggleStrategy(name)}
-                style={{
-                  ...chipStyle,
-                  background: selectedStrategies.includes(name) ? 'rgba(16,185,129,0.15)' : 'rgba(107,114,128,0.1)',
-                  color: selectedStrategies.includes(name) ? 'var(--accent-green)' : 'var(--text-secondary)',
-                  borderColor: selectedStrategies.includes(name) ? 'rgba(16,185,129,0.4)' : 'transparent',
-                }}
-              >
-                {name.replace(/_/g, ' ')}
-              </button>
-            ))}
+        {/* Strategy Info */}
+        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 6, background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)' }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-secondary)' }}>
+            <span><b>Entry:</b> 3-candle pattern (Momentum → Pullback → Confirm)</span>
+            <span><b>Exit:</b> T1 → cost+0.5% | T2 → lock 1R | 3-candle trail</span>
+            <span><b>Instruments:</b> NIFTY + SENSEX</span>
+            <span><b>Slippage:</b> 1.0%</span>
           </div>
         </div>
 
@@ -271,7 +194,7 @@ function BacktestPanel() {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <button
             onClick={handleRun}
-            disabled={running || selectedInstruments.length === 0 || selectedStrategies.length === 0}
+            disabled={running || !startDate || !endDate}
             style={{
               padding: '8px 24px', borderRadius: 6, fontSize: 13, fontWeight: 700,
               border: 'none', cursor: running ? 'not-allowed' : 'pointer',
@@ -348,7 +271,6 @@ function BacktestPanel() {
             {[
               ['summary', 'Equity Curve'],
               ['trades', 'All Trades'],
-              ['strategy', 'By Strategy'],
               ['daily', 'Daily PnL'],
             ].map(([key, label]) => (
               <button
@@ -382,9 +304,9 @@ function BacktestPanel() {
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th><th>Instrument</th><th>Strategy</th><th>Dir</th>
-                    <th>Score</th><th>Entry</th><th>Exit</th><th>PnL</th>
-                    <th>PnL %</th><th>Exit Reason</th><th>Result</th><th>Source</th>
+                    <th>Date</th><th>Instrument</th><th>Dir</th>
+                    <th>Strike</th><th>Mom</th><th>Entry</th><th>Exit</th><th>PnL</th>
+                    <th>PnL %</th><th>Exit Reason</th><th>Result</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -392,9 +314,9 @@ function BacktestPanel() {
                     <tr key={i}>
                       <td style={{ fontSize: 11 }}>{t.Date}</td>
                       <td>{t.Instrument}</td>
-                      <td><span className="tag tag-strategy" style={{ fontSize: 10 }}>{t.Strategy?.replace(/_/g, ' ')}</span></td>
                       <td><span style={{ color: t.Direction === 'CE' ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>{t.Direction}</span></td>
-                      <td style={{ fontWeight: 600 }}>{t.Score}</td>
+                      <td style={{ fontWeight: 600 }}>{t.Strike}</td>
+                      <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t['Momentum Ratio']}x</td>
                       <td style={{ fontSize: 11 }}>{t['Entry Time']} @ ₹{t['Entry Price']}</td>
                       <td style={{ fontSize: 11 }}>{t['Exit Time']} @ ₹{t['Exit Price']}</td>
                       <td style={{ fontWeight: 700, color: t.PnL >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
@@ -411,19 +333,10 @@ function BacktestPanel() {
                           color: t.Result === 'WIN' ? 'var(--accent-green)' : 'var(--accent-red)',
                         }}>{t.Result}</span>
                       </td>
-                      <td style={{ fontSize: 10, color: 'var(--text-muted)' }}>{t['Data Source']}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
-
-          {/* By Strategy */}
-          {activeResultTab === 'strategy' && (
-            <div className="card" style={{ padding: 14, marginBottom: 16 }}>
-              <div className="card-title" style={{ marginBottom: 10 }}>Strategy Performance</div>
-              <StrategyBreakdown trades={result.trades} />
             </div>
           )}
 
@@ -536,52 +449,6 @@ function EquityCurveChart({ data, initial }) {
   );
 }
 
-function StrategyBreakdown({ trades }) {
-  if (!trades || trades.length === 0) return null;
-  const groups = {};
-  trades.forEach((t) => {
-    const key = t.Strategy;
-    if (!groups[key]) groups[key] = { trades: 0, wins: 0, pnl: 0, scores: [] };
-    groups[key].trades++;
-    if (t.Result === 'WIN') groups[key].wins++;
-    groups[key].pnl += t.PnL;
-    groups[key].scores.push(t.Score);
-  });
-
-  const rows = Object.entries(groups).sort((a, b) => b[1].pnl - a[1].pnl);
-
-  return (
-    <table style={{ width: '100%', fontSize: 12 }}>
-      <thead>
-        <tr>
-          <th style={{ textAlign: 'left', padding: '4px 8px' }}>Strategy</th>
-          <th style={{ textAlign: 'right', padding: '4px 8px' }}>Trades</th>
-          <th style={{ textAlign: 'right', padding: '4px 8px' }}>Win Rate</th>
-          <th style={{ textAlign: 'right', padding: '4px 8px' }}>Total PnL</th>
-          <th style={{ textAlign: 'right', padding: '4px 8px' }}>Avg Score</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map(([name, g]) => {
-          const wr = (g.wins / g.trades * 100).toFixed(1);
-          const avgScore = (g.scores.reduce((a, b) => a + b, 0) / g.scores.length).toFixed(1);
-          return (
-            <tr key={name}>
-              <td style={{ padding: '4px 8px', fontWeight: 600 }}>{name.replace(/_/g, ' ')}</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right' }}>{g.trades} ({g.wins}W)</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right', color: wr >= 50 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{wr}%</td>
-              <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 700, color: g.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                ₹{g.pnl.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-              </td>
-              <td style={{ padding: '4px 8px', textAlign: 'right' }}>{avgScore}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
 function DailyPnLView({ curve }) {
   if (!curve || curve.length === 0) return null;
   const maxPnl = Math.max(...curve.map((d) => Math.abs(d.PnL)));
@@ -626,11 +493,6 @@ const presetBtnStyle = {
   padding: '5px 12px', borderRadius: 4, fontSize: 11, fontWeight: 600,
   border: '1px solid rgba(59,130,246,0.3)', cursor: 'pointer',
   background: 'rgba(59,130,246,0.08)', color: 'var(--accent-blue)',
-};
-
-const chipStyle = {
-  padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-  border: '1px solid transparent', cursor: 'pointer',
 };
 
 const exportBtnStyle = {
