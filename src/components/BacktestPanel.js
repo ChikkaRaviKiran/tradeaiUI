@@ -6,7 +6,44 @@ import {
   exportBacktestExcel,
 } from '../api';
 
+const STRATEGIES = [
+  { value: 'RANGE_BREAKOUT', label: 'Range Breakout', badge: 'RB — BACKTESTED EDGE', color: '#f59e0b' },
+  { value: 'ORB_VWAP', label: 'ORB + VWAP', badge: 'OPENING RANGE BREAKOUT', color: '#8b5cf6' },
+  { value: 'MOMENTUM_OPTION_BUYING', label: 'MOB v2', badge: 'MOMENTUM OPTION BUYING', color: '#10b981' },
+];
+
+const STRATEGY_INFO = {
+  RANGE_BREAKOUT: {
+    tags: ['Capital: ₹1,00,000', 'SL: 20% (1R)', 'Windows: 09:45-10:15, 11:00-12:00', 'PF 1.72'],
+    details: [
+      { k: 'Entry', v: 'ADX<20 + range<0.80% + breakout + RSI/volume/body confirmation' },
+      { k: 'Exit', v: '20% SL (1R) | T1 +1R → SL→BE | T2 +2R → lock 1R | EOD 15:10' },
+      { k: 'Instruments', v: 'NIFTY + SENSEX (with synthetic index)' },
+      { k: 'Time Windows', v: '09:45-10:15 + 11:00-12:00 only' },
+    ],
+  },
+  ORB_VWAP: {
+    tags: ['Capital: ₹1,00,000', 'SL: Structural/ORB', 'R:R 2:1', 'Max 1 trade/day'],
+    details: [
+      { k: 'Entry', v: 'Close breaks ORB High/Low + price above/below VWAP' },
+      { k: 'Exit', v: 'Structural SL (ORB opposite) | 2:1 target | VWAP cross | Trail after target' },
+      { k: 'Instruments', v: 'NIFTY + SENSEX' },
+      { k: 'ORB Window', v: '09:15 – 09:30 IST' },
+    ],
+  },
+  MOMENTUM_OPTION_BUYING: {
+    tags: ['Capital: ₹1,00,000', 'SL: 15%', 'Max 2 trades/day', '1 per instrument'],
+    details: [
+      { k: 'Entry', v: '3-candle + EMA/RSI/Volume confluence (score ≥3)' },
+      { k: 'Exit', v: 'T1 → partial 50% + cost+1% | T2 → lock 1R | 2-candle trail | 45-bar time exit' },
+      { k: 'Instruments', v: 'NIFTY + SENSEX' },
+      { k: 'Slippage', v: '1.0% entry + 0.5% exit' },
+    ],
+  },
+};
+
 function BacktestPanel() {
+  const [strategy, setStrategy] = useState('RANGE_BREAKOUT');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [running, setRunning] = useState(false);
@@ -60,7 +97,7 @@ function BacktestPanel() {
     setRunning(true);
 
     try {
-      const res = await runBacktest({ start_date: startDate, end_date: endDate });
+      const res = await runBacktest({ start_date: startDate, end_date: endDate, strategies: [strategy] });
       const jid = res.data.job_id;
       setJobId(jid);
       pollRef.current = setInterval(() => pollStatus(jid), 2000);
@@ -76,7 +113,7 @@ function BacktestPanel() {
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `mob_backtest_${exportJobId || jobId}.xlsx`);
+      link.setAttribute('download', `backtest_${strategy}_${exportJobId || jobId}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -108,22 +145,35 @@ function BacktestPanel() {
 
   return (
     <div>
-      {/* ── MOB Strategy Header + Config ── */}
+      {/* ── Strategy Header + Config ── */}
       <div className="card" style={{ padding: 16, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div className="card-title" style={{ margin: 0 }}>MOB Strategy Backtest</div>
-            <span style={{
-              padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700,
-              background: 'rgba(16,185,129,0.15)', color: 'var(--accent-green)',
-              border: '1px solid rgba(16,185,129,0.3)', letterSpacing: '0.5px',
-            }}>MOMENTUM OPTION BUYING</span>
+            <div className="card-title" style={{ margin: 0 }}>Strategy Backtest</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {STRATEGIES.map((s) => (
+                <button
+                  key={s.value}
+                  onClick={() => !running && setStrategy(s.value)}
+                  disabled={running}
+                  style={{
+                    padding: '4px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                    border: strategy === s.value ? `1.5px solid ${s.color}` : '1.5px solid rgba(107,114,128,0.2)',
+                    background: strategy === s.value ? `${s.color}22` : 'transparent',
+                    color: strategy === s.value ? s.color : 'var(--text-muted)',
+                    cursor: running ? 'not-allowed' : 'pointer', letterSpacing: '0.3px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <span className="tag tag-strategy" style={{ fontSize: 10 }}>Capital: ₹1,00,000</span>
-            <span className="tag tag-strategy" style={{ fontSize: 10 }}>SL: 20%</span>
-            <span className="tag tag-strategy" style={{ fontSize: 10 }}>Max 2 trades/day</span>
-            <span className="tag tag-strategy" style={{ fontSize: 10 }}>1 per instrument</span>
+            {STRATEGY_INFO[strategy].tags.map((tag) => (
+              <span key={tag} className="tag tag-strategy" style={{ fontSize: 10 }}>{tag}</span>
+            ))}
           </div>
         </div>
 
@@ -183,10 +233,9 @@ function BacktestPanel() {
         {/* Strategy Info */}
         <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 6, background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.12)' }}>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11, color: 'var(--text-secondary)' }}>
-            <span><b>Entry:</b> 3-candle pattern (Momentum → Pullback → Confirm)</span>
-            <span><b>Exit:</b> T1 → cost+0.5% | T2 → lock 1R | 3-candle trail</span>
-            <span><b>Instruments:</b> NIFTY + SENSEX</span>
-            <span><b>Slippage:</b> 1.0%</span>
+            {STRATEGY_INFO[strategy].details.map((d) => (
+              <span key={d.k}><b>{d.k}:</b> {d.v}</span>
+            ))}
           </div>
         </div>
 
@@ -304,8 +353,15 @@ function BacktestPanel() {
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th><th>Instrument</th><th>Symbol</th><th>Dir</th>
-                    <th>Strike</th><th>Mom</th><th>Entry</th><th>Exit</th><th>PnL</th>
+                    <th>Date</th><th>Instrument</th><th>Dir</th>
+                    <th>Strike</th>
+                    {result.config_used?.strategy === 'RANGE_BREAKOUT'
+                      ? <><th>Window</th><th>R Mult</th></>
+                      : result.config_used?.strategy === 'ORB_VWAP'
+                        ? <th>ORB</th>
+                        : <th>Mom</th>
+                    }
+                    <th>Entry</th><th>Exit</th><th>PnL</th>
                     <th>PnL %</th><th>Exit Reason</th><th>Result</th>
                   </tr>
                 </thead>
@@ -314,10 +370,15 @@ function BacktestPanel() {
                     <tr key={i}>
                       <td style={{ fontSize: 11 }}>{t.Date}</td>
                       <td>{t.Instrument}</td>
-                      <td style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-blue)' }}>{t.Symbol || ''}</td>
                       <td><span style={{ color: t.Direction === 'CE' ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>{t.Direction}</span></td>
                       <td style={{ fontWeight: 600 }}>{t.Strike}</td>
-                      <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t['Momentum Ratio']}x</td>
+                      {result.config_used?.strategy === 'RANGE_BREAKOUT'
+                        ? <><td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t['Time Window']}</td>
+                           <td style={{ fontSize: 11, fontWeight: 600, color: (t['R Multiple'] || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{t['R Multiple']}R</td></>
+                        : result.config_used?.strategy === 'ORB_VWAP'
+                          ? <td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t['ORB High'] && `${t['ORB High']}-${t['ORB Low']}`}</td>
+                          : <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t['Momentum Ratio']}x</td>
+                      }
                       <td style={{ fontSize: 11 }}>{t['Entry Time']} @ ₹{t['Entry Price']}</td>
                       <td style={{ fontSize: 11 }}>{t['Exit Time']} @ ₹{t['Exit Price']}</td>
                       <td style={{ fontWeight: 700, color: t.PnL >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
