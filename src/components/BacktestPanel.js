@@ -364,13 +364,11 @@ function BacktestPanel() {
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th><th>Instrument</th><th>Dir</th>
+                    <th>Date</th><th>Instrument</th><th>Strategy</th><th>Dir</th>
                     <th>Strike</th>
-                    {result.config_used?.strategy === 'RANGE_BREAKOUT'
-                      ? <><th>Window</th><th>R Mult</th></>
-                      : result.config_used?.strategy === 'ORB_VWAP'
-                        ? <th>ORB</th>
-                        : <th>Mom</th>
+                    {result.config_used?.strategy === 'ORB_VWAP'
+                      ? <th>ORB</th>
+                      : <><th>Window</th><th>R Mult</th></>
                     }
                     <th>Entry</th><th>Exit</th><th>PnL</th>
                     <th>PnL %</th><th>Exit Reason</th><th>Result</th>
@@ -381,14 +379,13 @@ function BacktestPanel() {
                     <tr key={i}>
                       <td style={{ fontSize: 11 }}>{t.Date}</td>
                       <td>{t.Instrument}</td>
+                      <td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t.Strategy}</td>
                       <td><span style={{ color: t.Direction === 'CE' ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>{t.Direction}</span></td>
                       <td style={{ fontWeight: 600 }}>{t.Strike}</td>
-                      {result.config_used?.strategy === 'RANGE_BREAKOUT'
-                        ? <><td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t['Time Window']}</td>
+                      {result.config_used?.strategy === 'ORB_VWAP'
+                        ? <td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t['ORB High'] && `${t['ORB High']}-${t['ORB Low']}`}</td>
+                        : <><td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t['Time Window']}</td>
                            <td style={{ fontSize: 11, fontWeight: 600, color: (t['R Multiple'] || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{t['R Multiple']}R</td></>
-                        : result.config_used?.strategy === 'ORB_VWAP'
-                          ? <td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t['ORB High'] && `${t['ORB High']}-${t['ORB Low']}`}</td>
-                          : <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t['Momentum Ratio']}x</td>
                       }
                       <td style={{ fontSize: 11 }}>{t['Entry Time']} @ ₹{t['Entry Price']}</td>
                       <td style={{ fontSize: 11 }}>{t['Exit Time']} @ ₹{t['Exit Price']}</td>
