@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   fetchAllSnapshots,
   fetchGlobalIndices,
@@ -13,6 +13,9 @@ import {
   stopSystem,
   setTradingMode,
   fetchBrokerStatus,
+  fetchStrategySelection,
+  fetchPerformanceComparison,
+  fetchSystemActivity,
 } from './api';
 import MarketOverview from './components/MarketOverview';
 import ActiveTrades from './components/ActiveTrades';
@@ -20,6 +23,10 @@ import CompletedTrades from './components/CompletedTrades';
 import AlertsPanel from './components/AlertsPanel';
 import BrokerSettings from './components/BrokerSettings';
 import BacktestPanel from './components/BacktestPanel';
+import StrategyHub from './components/StrategyHub';
+import StrategySelectionPanel from './components/StrategySelectionPanel';
+import HistoryDashboard from './components/HistoryDashboard';
+import SystemActivityLog from './components/SystemActivityLog';
 
 const REFRESH_INTERVAL = 15000;
 
@@ -36,6 +43,43 @@ function App() {
   const [brokerStatus, setBrokerStatus] = useState(null);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [strategySelection, setStrategySelection] = useState(null);
+  const [performanceComparison, setPerformanceComparison] = useState(null);
+  const [systemActivity, setSystemActivity] = useState(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const prevAlertCountRef = useRef(0);
+
+  // Request browser notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(p => setNotificationsEnabled(p === 'granted'));
+    } else if ('Notification' in window && Notification.permission === 'granted') {
+      setNotificationsEnabled(true);
+    }
+  }, []);
+
+  // Fire browser notification for new signal/exit alerts
+  useEffect(() => {
+    if (!alerts || alerts.length === 0) return;
+    if (prevAlertCountRef.current === 0) {
+      prevAlertCountRef.current = alerts.length;
+      return;
+    }
+    const newCount = alerts.length - prevAlertCountRef.current;
+    if (newCount > 0 && notificationsEnabled) {
+      const latest = alerts[0]; // alerts are newest-first
+      if (latest && (latest.alert_type === 'signal' || latest.alert_type === 'exit')) {
+        try {
+          new Notification(`TradeAI: ${latest.title}`, {
+            body: latest.message?.substring(0, 120),
+            icon: '/favicon.ico',
+            tag: `tradeai-${latest.id}`,
+          });
+        } catch {}
+      }
+    }
+    prevAlertCountRef.current = alerts.length;
+  }, [alerts, notificationsEnabled]);
 
   const loadData = useCallback(async () => {
     try {
@@ -49,6 +93,9 @@ function App() {
         fetchSystemStatus(),
         fetchIntelligence(),
         fetchBrokerStatus(),
+        fetchStrategySelection(),
+        fetchPerformanceComparison(),
+        fetchSystemActivity(),
       ]);
 
       const val = (i) => results[i].status === 'fulfilled' ? results[i].value.data : null;
@@ -62,6 +109,9 @@ function App() {
       if (val(6) !== null) setSystemStatus(val(6));
       if (val(7) !== null) setIntelligence(val(7));
       if (val(8) !== null) setBrokerStatus(val(8));
+      if (val(9) !== null) setStrategySelection(val(9));
+      if (val(10) !== null) setPerformanceComparison(val(10));
+      if (val(11) !== null) setSystemActivity(val(11));
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -154,6 +204,25 @@ function App() {
           </div>
 
           <button
+            onClick={() => {
+              if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission().then(p => setNotificationsEnabled(p === 'granted'));
+              } else {
+                setNotificationsEnabled(!notificationsEnabled);
+              }
+            }}
+            title={notificationsEnabled ? 'Browser notifications ON' : 'Browser notifications OFF'}
+            style={{
+              padding: '3px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+              border: 'none', cursor: 'pointer', letterSpacing: 0.5,
+              background: notificationsEnabled ? 'rgba(16,185,129,0.15)' : 'rgba(107,114,128,0.15)',
+              color: notificationsEnabled ? '#10b981' : '#6b7280',
+            }}
+          >
+            {notificationsEnabled ? '🔔 ON' : '🔕 OFF'}
+          </button>
+
+          <button
             onClick={handleModeToggle}
             style={{
               padding: '3px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
@@ -221,8 +290,11 @@ function App() {
       <nav className="tab-nav">
         {[
           ['market', 'Market'],
+          ['strategy', 'Strategy'],
           ['trades', 'Trades'],
+          ['history', 'History'],
           ['backtest', 'Backtest'],
+          ['monitor', 'Monitor'],
           ['settings', 'Settings'],
         ].map(([key, label]) => (
           <button
@@ -246,6 +318,16 @@ function App() {
         />
       )}
 
+      {tab === 'strategy' && (
+        <section className="section" style={{ marginTop: 4 }}>
+          <StrategyHub />
+          <div style={{ marginTop: 16 }}>
+            <h2 className="section-title">Today's Strategy Selection</h2>
+            <StrategySelectionPanel selection={strategySelection} comparison={performanceComparison} />
+          </div>
+        </section>
+      )}
+
       {tab === 'trades' && (
         <TradesTab
           allActive={allActive} allClosed={allClosed}
@@ -253,10 +335,28 @@ function App() {
         />
       )}
 
+      {tab === 'history' && (
+        <section className="section" style={{ marginTop: 4 }}>
+          <h2 className="section-title">Trade History</h2>
+          <HistoryDashboard />
+        </section>
+      )}
+
       {tab === 'backtest' && (
         <section className="section" style={{ marginTop: 4 }}>
           <h2 className="section-title">Backtest Simulator</h2>
           <BacktestPanel />
+        </section>
+      )}
+
+      {tab === 'monitor' && (
+        <section className="section" style={{ marginTop: 4 }}>
+          <h2 className="section-title">System Monitor</h2>
+          <SystemActivityLog activity={systemActivity} />
+          <div style={{ marginTop: 16 }}>
+            <h2 className="section-title">All Alerts</h2>
+            <AlertsPanel alerts={alerts} />
+          </div>
         </section>
       )}
 

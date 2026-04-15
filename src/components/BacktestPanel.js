@@ -7,37 +7,48 @@ import {
 } from '../api';
 
 const STRATEGIES = [
-  { value: 'RANGE_BREAKOUT', label: 'Range Breakout', badge: 'RB — BACKTESTED EDGE', color: '#f59e0b' },
-  { value: 'ORB_VWAP', label: 'ORB + VWAP', badge: 'OPENING RANGE BREAKOUT', color: '#8b5cf6' },
-  { value: 'MOMENTUM_OPTION_BUYING', label: 'MOB v2', badge: 'MOMENTUM OPTION BUYING', color: '#10b981' },
+  { value: 'RANGE_BREAKOUT', label: 'Range Breakout', badge: 'RB — NIFTY+SENSEX 09:45-10:15', color: '#f59e0b' },
+  { value: 'EMA_BREAKOUT', label: 'EMA Breakout', badge: 'EMA — NIFTY 11:00-12:00', color: '#3b82f6' },
+  { value: 'MOMENTUM_BREAKOUT', label: 'Momentum Breakout', badge: 'MB — SENSEX 09:45-10:15', color: '#ef4444' },
+  { value: 'ALL_THREE', label: 'Combined (All 3)', badge: 'RB+EMA+MB PORTFOLIO', color: '#6366f1' },
 ];
 
 const STRATEGY_INFO = {
   RANGE_BREAKOUT: {
-    tags: ['Capital: ₹1,00,000', 'SL: 20% (1R)', 'Windows: 09:45-10:15, 11:00-12:00', 'PF 1.72'],
+    tags: ['Capital: ₹1,00,000', 'SL: 20% (1R)', 'Window: 09:45-10:15', 'PF 2.86/3.19'],
     details: [
       { k: 'Entry', v: 'ADX<20 + range<0.80% + breakout + RSI/volume/body confirmation' },
       { k: 'Exit', v: '20% SL (1R) | T1 +1R → SL→BE | T2 +2R → lock 1R | EOD 15:10' },
-      { k: 'Instruments', v: 'NIFTY + SENSEX (with synthetic index)' },
-      { k: 'Time Windows', v: '09:45-10:15 + 11:00-12:00 only' },
+      { k: 'Instruments', v: 'NIFTY + SENSEX' },
+      { k: 'Time Windows', v: '09:45-10:15 only (best edge)' },
     ],
   },
-  ORB_VWAP: {
-    tags: ['Capital: ₹1,00,000', 'SL: Structural/ORB', 'R:R 2:1', 'Max 1 trade/day'],
+  EMA_BREAKOUT: {
+    tags: ['Capital: ₹1,00,000', 'SL: 20% (1R)', 'Window: 11:00-12:00', 'PF 1.46'],
     details: [
-      { k: 'Entry', v: 'Close breaks ORB High/Low + price above/below VWAP' },
-      { k: 'Exit', v: 'Structural SL (ORB opposite) | 2:1 target | VWAP cross | Trail after target' },
-      { k: 'Instruments', v: 'NIFTY + SENSEX' },
-      { k: 'ORB Window', v: '09:15 – 09:30 IST' },
+      { k: 'Entry', v: 'Price crosses EMA50 + EMA9>EMA20 + RSI 50-70 + body≥40%' },
+      { k: 'Exit', v: '20% SL (1R) | T1 +1R → SL→BE | T2 +2R → lock 1R | EOD 15:10' },
+      { k: 'Instruments', v: 'NIFTY only (SENSEX excluded — PF 0.70)' },
+      { k: 'Time Windows', v: '11:00-12:00 only (best edge)' },
     ],
   },
-  MOMENTUM_OPTION_BUYING: {
-    tags: ['Capital: ₹1,00,000', 'SL: 15%', 'Max 2 trades/day', '1 per instrument'],
+  MOMENTUM_BREAKOUT: {
+    tags: ['Capital: ₹1,00,000', 'SL: 20% (1R)', 'Window: 09:45-10:15', 'PF 1.36'],
     details: [
-      { k: 'Entry', v: '3-candle + EMA/RSI/Volume confluence (score ≥3)' },
-      { k: 'Exit', v: 'T1 → partial 50% + cost+1% | T2 → lock 1R | 2-candle trail | 45-bar time exit' },
-      { k: 'Instruments', v: 'NIFTY + SENSEX' },
-      { k: 'Slippage', v: '1.0% entry + 0.5% exit' },
+      { k: 'Entry', v: 'Donchian 20-candle breakout + ADX>25 + RSI>60 + volume≥1.5×' },
+      { k: 'Exit', v: '20% SL (1R) | T1 +1R → SL→BE | T2 +2R → lock 1R | EOD 15:10' },
+      { k: 'Instruments', v: 'SENSEX only (NIFTY excluded — PF 0.77)' },
+      { k: 'Time Windows', v: '09:45-10:15 only (best edge)' },
+    ],
+  },
+  ALL_THREE: {
+    tags: ['Capital: ₹1,00,000', 'SL: 20% (1R)', 'Portfolio', '3 Strategies'],
+    details: [
+      { k: 'Strategies', v: 'Range Breakout + EMA Breakout + Momentum Breakout' },
+      { k: 'RB', v: 'NIFTY+SENSEX 09:45-10:15 — ADX<20 range breakout' },
+      { k: 'EMA', v: 'NIFTY 11:00-12:00 — EMA50 cross' },
+      { k: 'MB', v: 'SENSEX 09:45-10:15 — Donchian breakout' },
+      { k: 'Exit', v: '20% SL (1R) | T1 +1R → SL→BE | T2 +2R → lock 1R | EOD 15:10' },
     ],
   },
 };
