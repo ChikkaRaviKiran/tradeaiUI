@@ -315,6 +315,7 @@ function App() {
         <DashboardTab
           allSnapshots={allSnapshots} globalIndices={globalIndices}
           intelligence={intelligence} alerts={alerts}
+          systemStatus={systemStatus}
         />
       )}
 
@@ -378,10 +379,42 @@ function KPI({ label, value, color, sub }) {
   );
 }
 
+/* ─── Scanner Status Card ─────────────────────────────────────────────── */
+function ScannerCard({ name, tag, scanner, color }) {
+  const statusText = scanner.in_trade ? '🔴 IN TRADE' :
+    scanner.signal_found ? '✅ Signal Found' :
+    scanner.day_tradeable ? '🔍 Scanning...' :
+    scanner.day_tradeable === false && scanner.active ? '⏸️ Day Skipped' : '⏳ Waiting';
+
+  return (
+    <div className="card" style={{ padding: 12, borderLeft: `3px solid ${color}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <div>
+          <span style={{ fontWeight: 700, fontSize: 13 }}>{name}</span>
+          <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--text-secondary)' }}>{tag}</span>
+        </div>
+        <span style={{
+          fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+          background: scanner.in_trade ? 'rgba(239,68,68,0.15)' : scanner.signal_found ? 'rgba(16,185,129,0.15)' :
+            scanner.day_tradeable ? 'rgba(59,130,246,0.15)' : 'rgba(107,114,128,0.15)',
+          color: scanner.in_trade ? '#ef4444' : scanner.signal_found ? '#10b981' :
+            scanner.day_tradeable ? '#3b82f6' : '#6b7280',
+        }}>
+          {statusText}
+        </span>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+        Week trade: {scanner.last_trade_week ? `W${scanner.last_trade_week}` : 'None yet'}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Dashboard Tab (Market-Focused) ─────────────────────────────────── */
-function DashboardTab({ allSnapshots, globalIndices, intelligence, alerts }) {
+function DashboardTab({ allSnapshots, globalIndices, intelligence, alerts, systemStatus }) {
   const { insight, fii_dii, breadth } = intelligence || {};
   const keyLevels = insight?.key_levels || {};
+  const scanners = systemStatus?.scanners || {};
 
   return (
     <>
@@ -389,6 +422,20 @@ function DashboardTab({ allSnapshots, globalIndices, intelligence, alerts }) {
       <section className="section" style={{ marginTop: 4 }}>
         <MarketOverview allSnapshots={allSnapshots} globalIndices={globalIndices} />
       </section>
+
+      {/* Scanner Status Panel */}
+      {(scanners.config_p || scanners.move_det) && (
+        <section className="section" style={{ marginTop: 4 }}>
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            {scanners.config_p && (
+              <ScannerCard name="CONFIG P" tag="detect_move" scanner={scanners.config_p} color="#8b5cf6" />
+            )}
+            {scanners.move_det && (
+              <ScannerCard name="MOVE-DET" tag="scan_all_moves" scanner={scanners.move_det} color="#f59e0b" />
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Market Context + Alerts sidebar */}
       <div className="dashboard-main">
