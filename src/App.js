@@ -27,11 +27,12 @@ import StrategyHub from './components/StrategyHub';
 import StrategySelectionPanel from './components/StrategySelectionPanel';
 import HistoryDashboard from './components/HistoryDashboard';
 import SystemActivityLog from './components/SystemActivityLog';
+import ScannersPanel from './components/ScannersPanel';
 
 const REFRESH_INTERVAL = 15000;
 
 function App() {
-  const [tab, setTab] = useState('market');
+  const [tab, setTab] = useState('scanners');
   const [allSnapshots, setAllSnapshots] = useState({});
   const [globalIndices, setGlobalIndices] = useState([]);
   const [activeTrades, setActiveTrades] = useState([]);
@@ -289,12 +290,8 @@ function App() {
       {/* ── Tab Navigation ─────────────────────────────────────── */}
       <nav className="tab-nav">
         {[
-          ['market', 'Market'],
-          ['strategy', 'Strategy'],
-          ['trades', 'Trades'],
-          ['history', 'History'],
-          ['backtest', 'Backtest'],
-          ['monitor', 'Monitor'],
+          ['scanners', 'Scanners'],
+          ['alerts', 'Alerts'],
           ['settings', 'Settings'],
         ].map(([key, label]) => (
           <button
@@ -303,61 +300,28 @@ function App() {
             onClick={() => setTab(key)}
           >
             {label}
-            {key === 'trades' && allActive.length > 0 && (
-              <span className="tab-badge">{allActive.length}</span>
+            {key === 'alerts' && alerts && alerts.length > 0 && (
+              <span className="tab-badge">{alerts.length}</span>
             )}
           </button>
         ))}
       </nav>
 
-      {/* ── Tab Content ────────────────────────────────────────── */}
-      {tab === 'market' && (
-        <DashboardTab
-          allSnapshots={allSnapshots} globalIndices={globalIndices}
-          intelligence={intelligence} alerts={alerts}
-          systemStatus={systemStatus}
-        />
-      )}
-
-      {tab === 'strategy' && (
+      {tab === 'scanners' && (
         <section className="section" style={{ marginTop: 4 }}>
-          <StrategyHub />
+          <h2 className="section-title">Active Scanners</h2>
+          <ScannersPanel systemStatus={systemStatus} />
           <div style={{ marginTop: 16 }}>
-            <h2 className="section-title">Today's Strategy Selection</h2>
-            <StrategySelectionPanel selection={strategySelection} comparison={performanceComparison} />
+            <h2 className="section-title">Live Alerts (Today)</h2>
+            <AlertsPanel alerts={alerts} compact />
           </div>
         </section>
       )}
 
-      {tab === 'trades' && (
-        <TradesTab
-          allActive={allActive} allClosed={allClosed}
-          performance={performance}
-        />
-      )}
-
-      {tab === 'history' && (
+      {tab === 'alerts' && (
         <section className="section" style={{ marginTop: 4 }}>
-          <h2 className="section-title">Trade History</h2>
-          <HistoryDashboard />
-        </section>
-      )}
-
-      {tab === 'backtest' && (
-        <section className="section" style={{ marginTop: 4 }}>
-          <h2 className="section-title">Backtest Simulator</h2>
-          <BacktestPanel />
-        </section>
-      )}
-
-      {tab === 'monitor' && (
-        <section className="section" style={{ marginTop: 4 }}>
-          <h2 className="section-title">System Monitor</h2>
-          <SystemActivityLog activity={systemActivity} />
-          <div style={{ marginTop: 16 }}>
-            <h2 className="section-title">All Alerts</h2>
-            <AlertsPanel alerts={alerts} />
-          </div>
+          <h2 className="section-title">All Alerts</h2>
+          <AlertsPanel alerts={alerts} />
         </section>
       )}
 
