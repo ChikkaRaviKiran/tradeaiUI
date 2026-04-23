@@ -87,10 +87,30 @@ function ScannersPanel({ systemStatus }) {
                 {d.last_trade_week !== undefined && d.last_trade_week !== null && (
                   <Row label="Last week" value={`W${d.last_trade_week}`} />
                 )}
+                {d.ai_runs_today !== undefined && (
+                  <Row label="AI runs" value={d.ai_runs_today} />
+                )}
                 {failures !== undefined && (
                   <Row label="AI fails" value={failures} />
                 )}
+                {d.last_run_at && (
+                  <Row label="Last run" value={d.last_run_at} />
+                )}
                 <Row label="In trade" value={inTrade ? 'Yes' : 'No'} />
+              </div>
+            )}
+            {active && d.last_decision && (
+              <div style={{
+                marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)',
+                fontSize: '0.7rem',
+              }}>
+                <div style={{ color: 'var(--text-muted)', marginBottom: 2 }}>Last decision</div>
+                <div style={{ fontWeight: 600 }}>{d.last_decision}</div>
+                {d.last_decision_detail && (
+                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+                    {d.last_decision_detail}
+                  </div>
+                )}
               </div>
             )}
           </div>
