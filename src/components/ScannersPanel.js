@@ -2,7 +2,7 @@ import React from 'react';
 
 /**
  * ScannersPanel — shows the live status of the active scanners
- * (Config P, Move Detection, AI-GPT, NR5 Breakout). Sourced from /api/system/status.
+ * (Config P, Move Detection, AI-GPT, NR5 Breakout, PDH/PDL Breakout). Sourced from /api/system/status.
  */
 function ScannersPanel({ systemStatus }) {
   const scanners = systemStatus?.scanners || {};
@@ -34,6 +34,12 @@ function ScannersPanel({ systemStatus }) {
       subtitle: 'Volatility contraction · PAPER',
       data: scanners.nr5,
     },
+    {
+      key: 'pdh_pdl',
+      title: 'PDH/PDL Breakout',
+      subtitle: 'Prev-day H/L break · PAPER',
+      data: scanners.pdh_pdl,
+    },
   ];
 
   return (
@@ -54,6 +60,10 @@ function ScannersPanel({ systemStatus }) {
                 ? (d.setup_checked && d.is_nr5_day === false)
                   ? 'var(--accent-red)'
                   : (d.gap_skip ? 'var(--accent-red)' : 'var(--accent-green)')
+                : card.key === 'pdh_pdl'
+                  ? (d.setup_checked && d.is_tradeable_day === false)
+                    ? 'var(--accent-red)'
+                    : 'var(--accent-green)'
                 : (dayTradeable === false || (failures !== undefined && failures >= 5))
                   ? 'var(--accent-red)'
                   : 'var(--accent-green)');
@@ -72,6 +82,12 @@ function ScannersPanel({ systemStatus }) {
                       : signalFound
                         ? 'DONE TODAY'
                         : 'WATCHING')
+              : card.key === 'pdh_pdl'
+                ? (!d.setup_checked
+                    ? 'WAITING'
+                    : signalFound
+                      ? 'DONE TODAY'
+                      : 'WATCHING')
               : signalFound === true && card.key !== 'ai_gpt'
                 ? 'DONE TODAY'
                 : (dayTradeable === false)
@@ -116,6 +132,18 @@ function ScannersPanel({ systemStatus }) {
                     <Row label="Signal" value={signalFound ? 'Yes' : 'Watching'} />
                     <Row label="In trade" value={inTrade ? 'Yes' : 'No'} />
                   </>
+                ) : card.key === 'pdh_pdl' ? (
+                  <>
+                    <Row label="Setup" value={d.setup_checked ? (d.is_tradeable_day ? 'Ready ✓' : 'No data') : 'Pending'} />
+                    {d.prev_high && (
+                      <Row label="Prev H" value={d.prev_high.toFixed(2)} />
+                    )}
+                    {d.prev_low && (
+                      <Row label="Prev L" value={d.prev_low.toFixed(2)} />
+                    )}
+                    <Row label="Signal" value={signalFound ? 'Yes' : 'Watching'} />
+                    <Row label="In trade" value={inTrade ? 'Yes' : 'No'} />
+                  </>
                 ) : (
                   <>
                     {dayTradeable !== undefined && (
@@ -141,7 +169,7 @@ function ScannersPanel({ systemStatus }) {
                 )}
               </div>
             )}
-            {card.key === 'nr5' && active && d.trade && (
+            {(card.key === 'nr5' || card.key === 'pdh_pdl') && active && d.trade && (
               <div style={{
                 marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)',
                 fontSize: '0.7rem',
