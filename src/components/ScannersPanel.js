@@ -1,8 +1,8 @@
 import React from 'react';
 
 /**
- * ScannersPanel — shows the live status of the three active scanners
- * (Config P, Move Detection, AI-GPT). Sourced from /api/system/status.
+ * ScannersPanel — shows the live status of the active scanners
+ * (Config P, Move Detection, AI-GPT, NR5 Breakout). Sourced from /api/system/status.
  */
 function ScannersPanel({ systemStatus }) {
   const scanners = systemStatus?.scanners || {};
@@ -28,6 +28,12 @@ function ScannersPanel({ systemStatus }) {
         : 'GPT pipeline · disabled',
       data: scanners.ai_gpt,
     },
+    {
+      key: 'nr5',
+      title: 'NR5 Breakout',
+      subtitle: 'Volatility contraction · PAPER',
+      data: scanners.nr5,
+    },
   ];
 
   return (
@@ -44,21 +50,35 @@ function ScannersPanel({ systemStatus }) {
           ? 'var(--text-muted)'
           : inTrade
             ? 'var(--accent-blue)'
-            : (dayTradeable === false || (failures !== undefined && failures >= 5))
-              ? 'var(--accent-red)'
-              : 'var(--accent-green)';
+            : (card.key === 'nr5'
+                ? (d.setup_checked && d.is_nr5_day === false)
+                  ? 'var(--accent-red)'
+                  : (d.gap_skip ? 'var(--accent-red)' : 'var(--accent-green)')
+                : (dayTradeable === false || (failures !== undefined && failures >= 5))
+                  ? 'var(--accent-red)'
+                  : 'var(--accent-green)');
 
         const statusLabel = !active
           ? 'DISABLED'
           : inTrade
             ? 'IN TRADE'
-            : signalFound === true && card.key !== 'ai_gpt'
-              ? 'DONE TODAY'
-              : (dayTradeable === false)
-                ? 'DAY SKIPPED'
-                : (failures !== undefined && failures >= 5)
-                  ? 'AI FAILED'
-                  : 'WATCHING';
+            : card.key === 'nr5'
+              ? (!d.setup_checked
+                  ? 'WAITING'
+                  : d.is_nr5_day === false
+                    ? 'NOT NR5'
+                    : d.gap_skip
+                      ? 'GAP SKIP'
+                      : signalFound
+                        ? 'DONE TODAY'
+                        : 'WATCHING')
+              : signalFound === true && card.key !== 'ai_gpt'
+                ? 'DONE TODAY'
+                : (dayTradeable === false)
+                  ? 'DAY SKIPPED'
+                  : (failures !== undefined && failures >= 5)
+                    ? 'AI FAILED'
+                    : 'WATCHING';
 
         return (
           <div className="card" key={card.key} style={{ padding: 14 }}>
@@ -78,25 +98,73 @@ function ScannersPanel({ systemStatus }) {
             )}
             {active && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: '0.7rem' }}>
-                {dayTradeable !== undefined && (
-                  <Row label="Day" value={dayTradeable ? 'Tradeable' : 'Skipped'} />
+                {card.key === 'nr5' ? (
+                  <>
+                    <Row label="Setup" value={d.setup_checked ? (d.is_nr5_day ? 'NR5 ✓' : 'Not NR5') : 'Pending'} />
+                    {d.gap_pct !== undefined && d.gap_pct !== null && (
+                      <Row label="Gap" value={`${d.gap_pct >= 0 ? '+' : ''}${d.gap_pct.toFixed(2)}%`} />
+                    )}
+                    {d.prev_high && (
+                      <Row label="Prev H" value={d.prev_high.toFixed(2)} />
+                    )}
+                    {d.prev_low && (
+                      <Row label="Prev L" value={d.prev_low.toFixed(2)} />
+                    )}
+                    {d.prev_range && (
+                      <Row label="Prev rng" value={`${d.prev_range.toFixed(1)} pts`} />
+                    )}
+                    <Row label="Signal" value={signalFound ? 'Yes' : 'Watching'} />
+                    <Row label="In trade" value={inTrade ? 'Yes' : 'No'} />
+                  </>
+                ) : (
+                  <>
+                    {dayTradeable !== undefined && (
+                      <Row label="Day" value={dayTradeable ? 'Tradeable' : 'Skipped'} />
+                    )}
+                    {signalFound !== undefined && (
+                      <Row label="Signal" value={signalFound ? 'Yes' : 'Watching'} />
+                    )}
+                    {d.last_trade_week !== undefined && d.last_trade_week !== null && (
+                      <Row label="Last week" value={`W${d.last_trade_week}`} />
+                    )}
+                    {d.ai_runs_today !== undefined && (
+                      <Row label="AI runs" value={d.ai_runs_today} />
+                    )}
+                    {failures !== undefined && (
+                      <Row label="AI fails" value={failures} />
+                    )}
+                    {d.last_run_at && (
+                      <Row label="Last run" value={d.last_run_at} />
+                    )}
+                    <Row label="In trade" value={inTrade ? 'Yes' : 'No'} />
+                  </>
                 )}
-                {signalFound !== undefined && (
-                  <Row label="Signal" value={signalFound ? 'Yes' : 'Watching'} />
+              </div>
+            )}
+            {card.key === 'nr5' && active && d.trade && (
+              <div style={{
+                marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)',
+                fontSize: '0.7rem',
+              }}>
+                <div style={{ color: 'var(--text-muted)', marginBottom: 2 }}>
+                  {d.trade.exited ? 'Last trade' : 'Active trade'}
+                </div>
+                <div style={{ fontWeight: 600 }}>
+                  {d.trade.side} @ {d.trade.entry_spot?.toFixed(2)} · {d.trade.entry_time}
+                </div>
+                <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+                  SL {d.trade.stop_level?.toFixed(2)} · TP {d.trade.target_level?.toFixed(2)}
+                </div>
+                {d.trade.option_symbol && (
+                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+                    {d.trade.option_symbol} ₹{d.trade.option_entry_price?.toFixed(2)}
+                  </div>
                 )}
-                {d.last_trade_week !== undefined && d.last_trade_week !== null && (
-                  <Row label="Last week" value={`W${d.last_trade_week}`} />
+                {d.trade.exited && (
+                  <div style={{ marginTop: 2 }}>
+                    Exit {d.trade.exit_spot?.toFixed(2)} · {d.trade.exit_time} · {d.trade.exit_reason}
+                  </div>
                 )}
-                {d.ai_runs_today !== undefined && (
-                  <Row label="AI runs" value={d.ai_runs_today} />
-                )}
-                {failures !== undefined && (
-                  <Row label="AI fails" value={failures} />
-                )}
-                {d.last_run_at && (
-                  <Row label="Last run" value={d.last_run_at} />
-                )}
-                <Row label="In trade" value={inTrade ? 'Yes' : 'No'} />
               </div>
             )}
             {active && d.last_decision && (
