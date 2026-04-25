@@ -35,6 +35,12 @@ function ScannersPanel({ systemStatus }) {
       subtitle: 'Prev-day H/L break · PAPER',
       data: scanners.pdh_pdl,
     },
+    {
+      key: 'vacuum',
+      title: '14:30 Vacuum',
+      subtitle: 'Afternoon coil break · PAPER',
+      data: scanners.vacuum,
+    },
   ];
 
   return (
@@ -56,6 +62,10 @@ function ScannersPanel({ systemStatus }) {
                   ? 'var(--accent-red)'
                   : (d.gap_skip ? 'var(--accent-red)' : 'var(--accent-green)')
                 : card.key === 'pdh_pdl'
+                  ? (d.setup_checked && d.is_tradeable_day === false)
+                    ? 'var(--accent-red)'
+                    : 'var(--accent-green)'
+                : card.key === 'vacuum'
                   ? (d.setup_checked && d.is_tradeable_day === false)
                     ? 'var(--accent-red)'
                     : 'var(--accent-green)'
@@ -83,6 +93,14 @@ function ScannersPanel({ systemStatus }) {
                     : signalFound
                       ? 'DONE TODAY'
                       : 'WATCHING')
+              : card.key === 'vacuum'
+                ? (!d.setup_checked
+                    ? 'WAITING'
+                    : d.is_tradeable_day === false
+                      ? 'NO COIL'
+                      : signalFound
+                        ? 'DONE TODAY'
+                        : 'WATCHING')
               : signalFound === true && card.key !== 'ai_gpt'
                 ? 'DONE TODAY'
                 : (dayTradeable === false)
@@ -139,6 +157,21 @@ function ScannersPanel({ systemStatus }) {
                     <Row label="Signal" value={signalFound ? 'Yes' : 'Watching'} />
                     <Row label="In trade" value={inTrade ? 'Yes' : 'No'} />
                   </>
+                ) : card.key === 'vacuum' ? (
+                  <>
+                    <Row label="Setup" value={d.setup_checked ? (d.is_tradeable_day ? 'Coil ✓' : 'No coil') : 'Pending'} />
+                    {d.coil_high != null && (
+                      <Row label="Coil H" value={d.coil_high.toFixed(2)} />
+                    )}
+                    {d.coil_low != null && (
+                      <Row label="Coil L" value={d.coil_low.toFixed(2)} />
+                    )}
+                    {d.coil_range != null && d.avg_range != null && d.avg_range > 0 && (
+                      <Row label="Range" value={`${d.coil_range.toFixed(1)} (${(100 * d.coil_range / d.avg_range).toFixed(0)}%)`} />
+                    )}
+                    <Row label="Signal" value={signalFound ? 'Yes' : 'Watching'} />
+                    <Row label="In trade" value={inTrade ? 'Yes' : 'No'} />
+                  </>
                 ) : (
                   <>
                     {dayTradeable !== undefined && (
@@ -164,7 +197,7 @@ function ScannersPanel({ systemStatus }) {
                 )}
               </div>
             )}
-            {(card.key === 'nr5' || card.key === 'pdh_pdl') && active && d.trade && (
+            {(card.key === 'nr5' || card.key === 'pdh_pdl' || card.key === 'vacuum') && active && d.trade && (
               <div style={{
                 marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)',
                 fontSize: '0.7rem',
@@ -175,9 +208,15 @@ function ScannersPanel({ systemStatus }) {
                 <div style={{ fontWeight: 600 }}>
                   {d.trade.side} @ {d.trade.entry_spot?.toFixed(2)} · {d.trade.entry_time}
                 </div>
-                <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
-                  SL {d.trade.stop_level?.toFixed(2)} · TP {d.trade.target_level?.toFixed(2)}
-                </div>
+                {card.key === 'vacuum' ? (
+                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+                    SL ₹{d.trade.option_sl_price?.toFixed(2)} · TP ₹{d.trade.option_target_price?.toFixed(2)}
+                  </div>
+                ) : (
+                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+                    SL {d.trade.stop_level?.toFixed(2)} · TP {d.trade.target_level?.toFixed(2)}
+                  </div>
+                )}
                 {d.trade.option_symbol && (
                   <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
                     {d.trade.option_symbol} ₹{d.trade.option_entry_price?.toFixed(2)}
