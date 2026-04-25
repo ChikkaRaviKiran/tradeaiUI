@@ -2,7 +2,8 @@ import React from 'react';
 
 /**
  * ScannersPanel — shows the live status of the active scanners
- * (Config P, Move Detection, AI-GPT, NR5 Breakout, PDH/PDL Breakout). Sourced from /api/system/status.
+ * (Config P, Move Detection, NR5 Breakout, PDH/PDL Breakout). Sourced from /api/system/status.
+ * Note: AI-GPT scanner is hidden from the UI (logic retained in backend, disabled by default).
  */
 function ScannersPanel({ systemStatus }) {
   const scanners = systemStatus?.scanners || {};
@@ -20,14 +21,8 @@ function ScannersPanel({ systemStatus }) {
       subtitle: 'Bearish · scan_all · conf≥80',
       data: scanners.move_det,
     },
-    {
-      key: 'ai_gpt',
-      title: 'AI-GPT',
-      subtitle: scanners.ai_gpt?.model
-        ? `GPT pipeline · ${scanners.ai_gpt.model}`
-        : 'GPT pipeline · disabled',
-      data: scanners.ai_gpt,
-    },
+    // AI-GPT card intentionally hidden — scanner logic preserved in backend
+    // (app/engine/ai_gpt_scanner.py) but disabled via AI_GPT_SCANNER_ENABLED=false.
     {
       key: 'nr5',
       title: 'NR5 Breakout',
