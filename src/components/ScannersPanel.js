@@ -2,7 +2,8 @@ import React from 'react';
 
 /**
  * ScannersPanel — shows the live status of the active scanners
- * (Config P, Move Detection, NR5 Breakout, PDH/PDL Breakout). Sourced from /api/system/status.
+ * (Config P, Move Detection, NR5 Breakout, PDH/PDL Breakout, 14:30 Vacuum, Range Breakout).
+ * Sourced from /api/system/status.
  * Note: AI-GPT scanner is hidden from the UI (logic retained in backend, disabled by default).
  */
 function ScannersPanel({ systemStatus }) {
@@ -41,6 +42,12 @@ function ScannersPanel({ systemStatus }) {
       subtitle: 'Afternoon coil break · PAPER',
       data: scanners.vacuum,
     },
+    {
+      key: 'range_breakout',
+      title: 'Range Breakout',
+      subtitle: '09:45-10:30 · Option C · PAPER',
+      data: scanners.range_breakout,
+    },
   ];
 
   return (
@@ -69,6 +76,8 @@ function ScannersPanel({ systemStatus }) {
                   ? (d.setup_checked && d.is_tradeable_day === false)
                     ? 'var(--accent-red)'
                     : 'var(--accent-green)'
+                : card.key === 'range_breakout'
+                  ? (signalFound ? 'var(--accent-blue)' : 'var(--accent-green)')
                 : (dayTradeable === false || (failures !== undefined && failures >= 5))
                   ? 'var(--accent-red)'
                   : 'var(--accent-green)');
@@ -101,6 +110,8 @@ function ScannersPanel({ systemStatus }) {
                       : signalFound
                         ? 'DONE TODAY'
                         : 'WATCHING')
+              : card.key === 'range_breakout'
+                ? (signalFound ? 'DONE TODAY' : 'WATCHING')
               : signalFound === true && card.key !== 'ai_gpt'
                 ? 'DONE TODAY'
                 : (dayTradeable === false)
@@ -172,6 +183,13 @@ function ScannersPanel({ systemStatus }) {
                     <Row label="Signal" value={signalFound ? 'Yes' : 'Watching'} />
                     <Row label="In trade" value={inTrade ? 'Yes' : 'No'} />
                   </>
+                ) : card.key === 'range_breakout' ? (
+                  <>
+                    <Row label="Setup" value="Active" />
+                    <Row label="Window" value="09:45-10:30" />
+                    <Row label="Signal" value={signalFound ? 'Yes' : 'Watching'} />
+                    <Row label="In trade" value={inTrade ? 'Yes' : 'No'} />
+                  </>
                 ) : (
                   <>
                     {dayTradeable !== undefined && (
@@ -197,7 +215,7 @@ function ScannersPanel({ systemStatus }) {
                 )}
               </div>
             )}
-            {(card.key === 'nr5' || card.key === 'pdh_pdl' || card.key === 'vacuum') && active && d.trade && (
+            {(card.key === 'nr5' || card.key === 'pdh_pdl' || card.key === 'vacuum' || card.key === 'range_breakout') && active && d.trade && (
               <div style={{
                 marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)',
                 fontSize: '0.7rem',
@@ -211,6 +229,10 @@ function ScannersPanel({ systemStatus }) {
                 {card.key === 'vacuum' ? (
                   <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
                     SL ₹{d.trade.option_sl_price?.toFixed(2)} · TP ₹{d.trade.option_target_price?.toFixed(2)}
+                  </div>
+                ) : card.key === 'range_breakout' ? (
+                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+                    SL ₹{d.trade.option_sl_price?.toFixed(2)} · T1 ₹{d.trade.option_t1_price?.toFixed(2)} · T2 ₹{d.trade.option_t2_price?.toFixed(2)}
                   </div>
                 ) : (
                   <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
