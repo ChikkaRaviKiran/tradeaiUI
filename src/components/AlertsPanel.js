@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { fetchAlerts } from '../api';
+import React, { useEffect, useState } from 'react';
+import { fetchAlerts, fetchSignals } from '../api';
 
 const TYPE_CONFIG = {
   signal: { emoji: '🔔', color: 'var(--accent-blue)', label: 'SIGNAL' },
@@ -12,6 +12,7 @@ function AlertsPanel({ alerts: defaultAlerts, compact }) {
   const todayStr = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [filteredAlerts, setFilteredAlerts] = useState(null);
+  const [signals, setSignals] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Use filtered alerts if a non-today date was explicitly selected, otherwise use live alerts
@@ -30,11 +31,26 @@ function AlertsPanel({ alerts: defaultAlerts, compact }) {
     try {
       const res = await fetchAlerts(200, date);
       setFilteredAlerts(res.data || []);
+      const sigRes = await fetchSignals(300, date);
+      setSignals(sigRes.data || []);
     } catch {
       setFilteredAlerts([]);
+      setSignals([]);
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    const loadTodaySignals = async () => {
+      try {
+        const res = await fetchSignals(300, selectedDate);
+        setSignals(res.data || []);
+      } catch {
+        setSignals([]);
+      }
+    };
+    loadTodaySignals();
+  }, [selectedDate]);
 
   const dateBar = (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -119,6 +135,36 @@ function AlertsPanel({ alerts: defaultAlerts, compact }) {
           </div>
         );
       })}
+      </div>
+
+      <div className="card" style={{ marginTop: 10, padding: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Signals ({selectedDate})</span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{signals.length}</span>
+        </div>
+        {signals.length === 0 ? (
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>No signals recorded</div>
+        ) : (
+          <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            {signals.slice(0, 100).map((s) => (
+              <div key={s.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>
+                    {s.strategy || 'UNKNOWN'} {s.option_type || ''}
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                    {s.time || (s.timestamp ? new Date(s.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '')}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  {s.source === 'signals_table'
+                    ? `score ${s.score ?? '-'} · ai ${s.ai_decision || '-'}${s.instrument ? ` · ${s.instrument}` : ''}`
+                    : (s.title || 'Signal alert')}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

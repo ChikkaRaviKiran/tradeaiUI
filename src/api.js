@@ -17,6 +17,11 @@ export const fetchAlerts = (limit = 50, date = null) => {
   if (date) params.set('target_date', date);
   return api.get(`/api/alerts?${params.toString()}`);
 };
+export const fetchSignals = (limit = 200, date = null) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (date) params.set('target_date', date);
+  return api.get(`/api/signals?${params.toString()}`);
+};
 export const fetchSystemStatus = () => api.get('/api/system/status');
 export const fetchSystemActivity = () => api.get('/api/system/activity');
 export const startSystem = () => api.post('/api/system/start');
