@@ -99,7 +99,29 @@ jobs:
             sudo docker system prune -f 2>/dev/null || true
             sudo rm -rf /var/lib/docker/containerd/daemon/io.containerd.content.v1.content/ingest/* 2>/dev/null || true
             echo "Pulling ${FRONTEND_IMAGE}:${FRONTEND_TAG}"
-            sudo docker pull "${FRONTEND_IMAGE}:${FRONTEND_TAG}"
+
+            pull_with_recovery() {
+              local image_ref="$1"
+              local max_attempts=3
+              local attempt=1
+
+              while [ "$attempt" -le "$max_attempts" ]; do
+                echo "Pull attempt ${attempt}/${max_attempts}: ${image_ref}"
+                if sudo docker pull "${image_ref}"; then
+                  return 0
+                fi
+
+                echo "Pull failed on attempt ${attempt}; recovering Docker/containerd state..."
+                sudo rm -rf /var/lib/docker/containerd/daemon/io.containerd.content.v1.content/ingest/* 2>/dev/null || true
+                sudo systemctl restart docker || true
+                sudo systemctl restart containerd || true
+                attempt=$((attempt + 1))
+              done
+
+              return 1
+            }
+
+            pull_with_recovery "${FRONTEND_IMAGE}:${FRONTEND_TAG}"
 
             # Start frontend and reload system nginx
             sudo -E docker compose -f docker-compose.prod.yml up -d --no-deps frontend
