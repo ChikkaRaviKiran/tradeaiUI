@@ -18,8 +18,10 @@ const DEFAULTS = {
   sl_upper: 0,
   first_straddle_sl_pct: 100,
   reform_straddle_sl_pct: 60,
+  hedge_mode: 'none',
   hedge_enabled: false,
   hedge_premium: 3,
+  hedge_otm_points: 500,
   hedge_lots: 0,
   execution_account: 'Primary',
 };
@@ -59,12 +61,26 @@ export default function StrategySettingsPanel() {
     try {
       const next = { ...form, ...patch };
       const merged = { ...next };
-      if (merged.sl_type === 'spot') {
+      if (merged.sl_type === 'none') {
+        merged.sl_lower = 0;
+        merged.sl_upper = 0;
+      } else if (merged.sl_type === 'spot') {
         merged.first_straddle_sl_pct = 100;
         merged.reform_straddle_sl_pct = Math.max(1, num(merged.reform_straddle_sl_pct, 60));
       } else {
         merged.sl_lower = 0;
         merged.sl_upper = 0;
+      }
+
+      const hedgeMode = String(merged.hedge_mode || 'none');
+      merged.hedge_mode = hedgeMode;
+      merged.hedge_enabled = hedgeMode !== 'none';
+      if (hedgeMode === 'premium') {
+        merged.hedge_otm_points = 500;
+      } else if (hedgeMode === 'otm_points') {
+        merged.hedge_premium = 3;
+      } else {
+        merged.hedge_lots = 0;
       }
 
       const payload = {
@@ -78,8 +94,10 @@ export default function StrategySettingsPanel() {
         sl_upper: Math.max(0, num(merged.sl_upper, 0)),
         first_straddle_sl_pct: Math.max(1, num(merged.first_straddle_sl_pct, 100)),
         reform_straddle_sl_pct: Math.max(1, num(merged.reform_straddle_sl_pct, 60)),
+        hedge_mode: merged.hedge_mode,
         hedge_enabled: !!merged.hedge_enabled,
         hedge_premium: Math.max(1, num(merged.hedge_premium, 3)),
+        hedge_otm_points: Math.max(1, num(merged.hedge_otm_points, 500)),
         hedge_lots: Math.max(0, num(merged.hedge_lots, 0)),
       };
       const res = await updateAtlStraddleSettings(payload);
@@ -156,11 +174,17 @@ export default function StrategySettingsPanel() {
                 <label className="atl-field">
                   <span>SL Type</span>
                   <select value={form.sl_type} onChange={(e) => setForm((s) => ({ ...s, sl_type: e.target.value }))}>
+                    <option value="none">None</option>
                     <option value="premium_pct">Premium %</option>
                     <option value="spot">Spot Level</option>
                   </select>
                 </label>
-                {form.sl_type === 'spot' ? (
+                {form.sl_type === 'none' ? (
+                  <div className="atl-field atl-field-placeholder" style={{ gridColumn: '2 / 5' }}>
+                    <span>Stop Loss</span>
+                    <div className="atl-placeholder-text">All stop-loss fields hidden for None mode</div>
+                  </div>
+                ) : form.sl_type === 'spot' ? (
                   <>
                     <label className="atl-field">
                       <span>SL Lower</span>
@@ -200,14 +224,19 @@ export default function StrategySettingsPanel() {
                 <label className="atl-field">
                   <span>Hedge Type</span>
                   <select
-                    value={form.hedge_enabled ? 'otm' : 'none'}
-                    onChange={(e) => setForm((s) => ({ ...s, hedge_enabled: e.target.value === 'otm' }))}
+                    value={form.hedge_mode || (form.hedge_enabled ? 'premium' : 'none')}
+                    onChange={(e) => setForm((s) => ({
+                      ...s,
+                      hedge_mode: e.target.value,
+                      hedge_enabled: e.target.value !== 'none',
+                    }))}
                   >
                     <option value="none">Disabled</option>
-                    <option value="otm">OTM Protection</option>
+                    <option value="premium">Premium Target</option>
+                    <option value="otm_points">OTM Points</option>
                   </select>
                 </label>
-                {form.hedge_enabled ? (
+                {(form.hedge_mode || 'none') === 'premium' ? (
                   <>
                     <label className="atl-field">
                       <span>Target Premium (₹)</span>
@@ -219,15 +248,27 @@ export default function StrategySettingsPanel() {
                       <small className="atl-help">0 = match strategy lots</small>
                     </label>
                   </>
+                ) : (form.hedge_mode || 'none') === 'otm_points' ? (
+                  <>
+                    <label className="atl-field">
+                      <span>OTM Points</span>
+                      <input type="number" min="1" value={form.hedge_otm_points || 500} onChange={(e) => setForm((s) => ({ ...s, hedge_otm_points: e.target.value }))} />
+                    </label>
+                    <label className="atl-field">
+                      <span>Hedge Lots</span>
+                      <input type="number" min="0" value={form.hedge_lots} onChange={(e) => setForm((s) => ({ ...s, hedge_lots: e.target.value }))} />
+                      <small className="atl-help">0 = match strategy lots</small>
+                    </label>
+                  </>
                 ) : (
                   <>
                     <div className="atl-field atl-field-placeholder">
-                      <span>Target Premium (₹)</span>
-                      <div className="atl-placeholder-text">Hidden while hedge is disabled</div>
+                      <span>Hedge Inputs</span>
+                      <div className="atl-placeholder-text">All hedge fields hidden for Disabled mode</div>
                     </div>
                     <div className="atl-field atl-field-placeholder">
-                      <span>Hedge Lots</span>
-                      <div className="atl-placeholder-text">Hidden while hedge is disabled</div>
+                      <span>Hedge Inputs</span>
+                      <div className="atl-placeholder-text">All hedge fields hidden for Disabled mode</div>
                     </div>
                   </>
                 )}
