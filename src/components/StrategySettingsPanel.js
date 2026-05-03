@@ -58,20 +58,29 @@ export default function StrategySettingsPanel() {
     setError('');
     try {
       const next = { ...form, ...patch };
+      const merged = { ...next };
+      if (merged.sl_type === 'spot') {
+        merged.first_straddle_sl_pct = 100;
+        merged.reform_straddle_sl_pct = Math.max(1, num(merged.reform_straddle_sl_pct, 60));
+      } else {
+        merged.sl_lower = 0;
+        merged.sl_upper = 0;
+      }
+
       const payload = {
-        ...next,
+        ...merged,
         strategy_type: 'ATM_STRADDLE',
-        lots: Math.max(1, num(next.lots, 1)),
-        strike_interval: Math.max(1, num(next.strike_interval, 50)),
-        offset_points: Math.max(1, num(next.offset_points, 500)),
-        rolling_points: Math.max(1, num(next.rolling_points, 300)),
-        sl_lower: Math.max(0, num(next.sl_lower, 0)),
-        sl_upper: Math.max(0, num(next.sl_upper, 0)),
-        first_straddle_sl_pct: Math.max(1, num(next.first_straddle_sl_pct, 100)),
-        reform_straddle_sl_pct: Math.max(1, num(next.reform_straddle_sl_pct, 60)),
-        hedge_enabled: !!next.hedge_enabled,
-        hedge_premium: Math.max(1, num(next.hedge_premium, 3)),
-        hedge_lots: Math.max(0, num(next.hedge_lots, 0)),
+        lots: Math.max(1, num(merged.lots, 1)),
+        strike_interval: Math.max(1, num(merged.strike_interval, 50)),
+        offset_points: Math.max(1, num(merged.offset_points, 500)),
+        rolling_points: Math.max(1, num(merged.rolling_points, 300)),
+        sl_lower: Math.max(0, num(merged.sl_lower, 0)),
+        sl_upper: Math.max(0, num(merged.sl_upper, 0)),
+        first_straddle_sl_pct: Math.max(1, num(merged.first_straddle_sl_pct, 100)),
+        reform_straddle_sl_pct: Math.max(1, num(merged.reform_straddle_sl_pct, 60)),
+        hedge_enabled: !!merged.hedge_enabled,
+        hedge_premium: Math.max(1, num(merged.hedge_premium, 3)),
+        hedge_lots: Math.max(0, num(merged.hedge_lots, 0)),
       };
       const res = await updateAtlStraddleSettings(payload);
       setForm({ ...DEFAULTS, ...(res?.data?.settings || payload) });
@@ -151,37 +160,77 @@ export default function StrategySettingsPanel() {
                     <option value="spot">Spot Level</option>
                   </select>
                 </label>
-                <label className="atl-field">
-                  <span>SL Lower</span>
-                  <input type="number" min="0" value={form.sl_lower} onChange={(e) => setForm((s) => ({ ...s, sl_lower: e.target.value }))} />
-                </label>
-                <label className="atl-field">
-                  <span>SL Upper</span>
-                  <input type="number" min="0" value={form.sl_upper} onChange={(e) => setForm((s) => ({ ...s, sl_upper: e.target.value }))} />
-                </label>
-                <label className="atl-field">
-                  <span>Premium SL %</span>
-                  <input type="number" min="1" value={form.first_straddle_sl_pct} onChange={(e) => setForm((s) => ({ ...s, first_straddle_sl_pct: e.target.value }))} />
-                </label>
+                {form.sl_type === 'spot' ? (
+                  <>
+                    <label className="atl-field">
+                      <span>SL Lower</span>
+                      <input type="number" min="0" value={form.sl_lower} onChange={(e) => setForm((s) => ({ ...s, sl_lower: e.target.value }))} />
+                    </label>
+                    <label className="atl-field">
+                      <span>SL Upper</span>
+                      <input type="number" min="0" value={form.sl_upper} onChange={(e) => setForm((s) => ({ ...s, sl_upper: e.target.value }))} />
+                    </label>
+                    <div className="atl-field atl-field-placeholder">
+                      <span>Premium SL %</span>
+                      <div className="atl-placeholder-text">Hidden for Spot SL mode</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label className="atl-field">
+                      <span>Premium SL %</span>
+                      <input type="number" min="1" value={form.first_straddle_sl_pct} onChange={(e) => setForm((s) => ({ ...s, first_straddle_sl_pct: e.target.value }))} />
+                    </label>
+                    <label className="atl-field">
+                      <span>Reform SL %</span>
+                      <input type="number" min="1" value={form.reform_straddle_sl_pct} onChange={(e) => setForm((s) => ({ ...s, reform_straddle_sl_pct: e.target.value }))} />
+                    </label>
+                    <div className="atl-field atl-field-placeholder">
+                      <span>SL Lower / Upper</span>
+                      <div className="atl-placeholder-text">Hidden for Premium % mode</div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="instance-row">
               <div className="instance-label">Hedge</div>
               <div className="instance-grid instance-grid-4">
-                <label className="atl-field atl-toggle">
-                  <span>OTM Protection</span>
-                  <input type="checkbox" checked={!!form.hedge_enabled} onChange={(e) => setForm((s) => ({ ...s, hedge_enabled: e.target.checked }))} />
-                </label>
                 <label className="atl-field">
-                  <span>Target Premium (₹)</span>
-                  <input type="number" min="1" disabled={!form.hedge_enabled} value={form.hedge_premium} onChange={(e) => setForm((s) => ({ ...s, hedge_premium: e.target.value }))} />
+                  <span>Hedge Type</span>
+                  <select
+                    value={form.hedge_enabled ? 'otm' : 'none'}
+                    onChange={(e) => setForm((s) => ({ ...s, hedge_enabled: e.target.value === 'otm' }))}
+                  >
+                    <option value="none">Disabled</option>
+                    <option value="otm">OTM Protection</option>
+                  </select>
                 </label>
-                <label className="atl-field">
-                  <span>Hedge Lots</span>
-                  <input type="number" min="0" disabled={!form.hedge_enabled} value={form.hedge_lots} onChange={(e) => setForm((s) => ({ ...s, hedge_lots: e.target.value }))} />
-                  <small className="atl-help">0 = match strategy lots</small>
-                </label>
+                {form.hedge_enabled ? (
+                  <>
+                    <label className="atl-field">
+                      <span>Target Premium (₹)</span>
+                      <input type="number" min="1" value={form.hedge_premium} onChange={(e) => setForm((s) => ({ ...s, hedge_premium: e.target.value }))} />
+                    </label>
+                    <label className="atl-field">
+                      <span>Hedge Lots</span>
+                      <input type="number" min="0" value={form.hedge_lots} onChange={(e) => setForm((s) => ({ ...s, hedge_lots: e.target.value }))} />
+                      <small className="atl-help">0 = match strategy lots</small>
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <div className="atl-field atl-field-placeholder">
+                      <span>Target Premium (₹)</span>
+                      <div className="atl-placeholder-text">Hidden while hedge is disabled</div>
+                    </div>
+                    <div className="atl-field atl-field-placeholder">
+                      <span>Hedge Lots</span>
+                      <div className="atl-placeholder-text">Hidden while hedge is disabled</div>
+                    </div>
+                  </>
+                )}
                 <label className="atl-field">
                   <span>Offset Pts</span>
                   <input type="number" min="1" value={form.offset_points} onChange={(e) => setForm((s) => ({ ...s, offset_points: e.target.value }))} />

@@ -514,6 +514,19 @@ tr:hover td {
   flex-wrap: wrap;
 }
 
+.atl-field-placeholder {
+  border: 1px dashed var(--border-light);
+  border-radius: 6px;
+  padding: 8px 10px;
+  justify-content: center;
+  background: rgba(148, 163, 184, 0.05);
+}
+
+.atl-placeholder-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .atl-field {
   display: flex;
   flex-direction: column;
