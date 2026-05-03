@@ -25,9 +25,12 @@ import BrokerSettings from './components/BrokerSettings';
 import BacktestPanel from './components/BacktestPanel';
 import StrategyHub from './components/StrategyHub';
 import StrategySelectionPanel from './components/StrategySelectionPanel';
-import HistoryDashboard from './components/HistoryDashboard';
 import SystemActivityLog from './components/SystemActivityLog';
 import ScannersPanel from './components/ScannersPanel';
+import StrategySettingsPanel from './components/StrategySettingsPanel';
+import PositionsPage from './components/PositionsPage';
+import HistoryPage from './components/HistoryPage';
+import ATMStrategyPage from './components/ATMStrategyPage';
 
 const REFRESH_INTERVAL = 15000;
 
@@ -291,6 +294,9 @@ function App() {
       <nav className="tab-nav">
         {[
           ['scanners', 'Scanners'],
+          ['atm', 'ATM Strategy'],
+          ['positions', 'Positions'],
+          ['history', 'History'],
           ['alerts', 'Alerts'],
           ['settings', 'Settings'],
         ].map(([key, label]) => (
@@ -323,6 +329,22 @@ function App() {
           <h2 className="section-title">All Alerts</h2>
           <AlertsPanel alerts={alerts} />
         </section>
+      )}
+
+      {tab === 'positions' && (
+        <PositionsPage
+          activeTrades={allActive}
+          todayTrades={todayTrades}
+          performance={performance}
+        />
+      )}
+
+      {tab === 'atm' && (
+        <ATMStrategyPage />
+      )}
+
+      {tab === 'history' && (
+        <HistoryPage />
       )}
 
       {tab === 'settings' && (
@@ -589,6 +611,10 @@ function SettingsTab() {
       <section className="section" style={{ marginTop: 4 }}>
         <h2 className="section-title">Broker Connection</h2>
         <BrokerSettings />
+      </section>
+
+      <section className="section" style={{ marginTop: 16 }}>
+        <StrategySettingsPanel />
       </section>
     </>
   );

@@ -52,6 +52,20 @@ export const testBrokerConnection = () => api.post('/api/broker/test');
 export const updateBrokerCredentials = (creds) => api.post('/api/broker/update-credentials', creds);
 export const reAuthenticateBroker = () => api.post('/api/broker/re-authenticate');
 
+// Positions / history parity APIs
+export const fetchPositions = () => api.get('/api/positions');
+export const exitPositions = (payload) => api.post('/api/positions/exit', payload);
+export const fetchTradeHistory = (params = {}) => api.get('/api/trade-history', { params });
+export const captureEodSnapshot = () => api.post('/api/eod/snapshot');
+
+// ATL ATM runtime APIs
+export const fetchAtmRuntime = () => api.get('/api/atm/runtime');
+export const forceCloseAtm = () => api.post('/api/atm/force-close');
+
+// ATL Straddle strategy settings
+export const fetchAtlStraddleSettings = () => api.get('/api/strategy-settings/atl-straddle');
+export const updateAtlStraddleSettings = (payload) => api.put('/api/strategy-settings/atl-straddle', payload);
+
 // Strategy Analytics (backtest results, rankings, today's plan)
 export const fetchStrategyAnalytics = () => api.get('/api/strategy-analytics');
 
