@@ -61,6 +61,7 @@ export const captureEodSnapshot = () => api.post('/api/eod/snapshot');
 // ATL ATM runtime APIs
 export const fetchAtmRuntime = () => api.get('/api/atm/runtime');
 export const forceCloseAtm = () => api.post('/api/atm/force-close');
+export const placeNowAtm = () => api.post('/api/atm/place-now');
 
 // ATL Straddle strategy settings
 export const fetchAtlStraddleSettings = () => api.get('/api/strategy-settings/atl-straddle');

@@ -462,6 +462,58 @@ tr:hover td {
   flex-wrap: wrap;
 }
 
+.instance-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.instance-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 14px;
+  align-items: start;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.instance-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.instance-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 700;
+  padding-top: 8px;
+}
+
+.instance-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.instance-grid-4 {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.instance-grid-5 {
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+}
+
+.instance-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  flex-wrap: wrap;
+}
+
 .atl-field {
   display: flex;
   flex-direction: column;
@@ -505,6 +557,16 @@ tr:hover td {
   }
 
   .atl-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .instance-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .instance-grid-4,
+  .instance-grid-5 {
     grid-template-columns: 1fr;
   }
 }
