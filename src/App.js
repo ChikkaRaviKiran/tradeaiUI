@@ -606,16 +606,39 @@ function TradesTab({ allActive, allClosed, performance }) {
 
 /* ─── Settings Tab ───────────────────────────────────────────────────── */
 function SettingsTab() {
+  const [settingsView, setSettingsView] = useState('broker');
+
   return (
     <>
       <section className="section" style={{ marginTop: 4 }}>
-        <h2 className="section-title">Broker Connection</h2>
-        <BrokerSettings />
+        <div className="settings-subnav">
+          <button
+            className={`tab-btn ${settingsView === 'broker' ? 'active' : ''}`}
+            onClick={() => setSettingsView('broker')}
+          >
+            Broker
+          </button>
+          <button
+            className={`tab-btn ${settingsView === 'strategy' ? 'active' : ''}`}
+            onClick={() => setSettingsView('strategy')}
+          >
+            Strategy
+          </button>
+        </div>
       </section>
 
-      <section className="section" style={{ marginTop: 16 }}>
-        <StrategySettingsPanel />
-      </section>
+      {settingsView === 'broker' && (
+        <section className="section" style={{ marginTop: 10 }}>
+          <h2 className="section-title">Broker Connection</h2>
+          <BrokerSettings />
+        </section>
+      )}
+
+      {settingsView === 'strategy' && (
+        <section className="section" style={{ marginTop: 10 }}>
+          <StrategySettingsPanel />
+        </section>
+      )}
     </>
   );
 }
