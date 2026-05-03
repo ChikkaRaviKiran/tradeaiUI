@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { fetchAtlStraddleSettings, placeNowAtm, updateAtlStraddleSettings } from '../api';
+import {
+  fetchAtlStraddleSettings,
+  fetchMoveDetExecSettings,
+  fetchPdhPdlExecSettings,
+  placeNowAtm,
+  updateAtlStraddleSettings,
+  updateMoveDetExecSettings,
+  updatePdhPdlExecSettings,
+} from '../api';
 
 const DEFAULTS = {
   enabled: false,
@@ -130,7 +138,7 @@ export default function StrategySettingsPanel() {
           <form onSubmit={onSave} className="instance-form">
             <div className="instance-row">
               <div className="instance-label">Strategy</div>
-              <div className="instance-grid instance-grid-5">
+              <div className="instance-grid instance-grid-6">
                 <label className="atl-field">
                   <span>Type</span>
                   <select value="ATM Straddle" disabled>
@@ -164,6 +172,11 @@ export default function StrategySettingsPanel() {
                 <label className="atl-field">
                   <span>Strike Int</span>
                   <input type="number" min="1" value={form.strike_interval} onChange={(e) => setForm((s) => ({ ...s, strike_interval: e.target.value }))} />
+                </label>
+                <label className="atl-field">
+                  <span>Offset Pts</span>
+                  <input type="number" min="1" value={form.offset_points} onChange={(e) => setForm((s) => ({ ...s, offset_points: e.target.value }))} />
+                  <small className="atl-help">Short strangle distance from ATM (strategy-level setting)</small>
                 </label>
               </div>
             </div>
@@ -247,6 +260,10 @@ export default function StrategySettingsPanel() {
                       <input type="number" min="0" value={form.hedge_lots} onChange={(e) => setForm((s) => ({ ...s, hedge_lots: e.target.value }))} />
                       <small className="atl-help">0 = match strategy lots</small>
                     </label>
+                    <div className="atl-field atl-field-placeholder">
+                      <span>OTM Points</span>
+                      <div className="atl-placeholder-text">Hidden for Premium Target mode</div>
+                    </div>
                   </>
                 ) : (form.hedge_mode || 'none') === 'otm_points' ? (
                   <>
@@ -259,6 +276,10 @@ export default function StrategySettingsPanel() {
                       <input type="number" min="0" value={form.hedge_lots} onChange={(e) => setForm((s) => ({ ...s, hedge_lots: e.target.value }))} />
                       <small className="atl-help">0 = match strategy lots</small>
                     </label>
+                    <div className="atl-field atl-field-placeholder">
+                      <span>Target Premium (₹)</span>
+                      <div className="atl-placeholder-text">Hidden for OTM Points mode</div>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -270,12 +291,12 @@ export default function StrategySettingsPanel() {
                       <span>Hedge Inputs</span>
                       <div className="atl-placeholder-text">All hedge fields hidden for Disabled mode</div>
                     </div>
+                    <div className="atl-field atl-field-placeholder">
+                      <span>Hedge Inputs</span>
+                      <div className="atl-placeholder-text">All hedge fields hidden for Disabled mode</div>
+                    </div>
                   </>
                 )}
-                <label className="atl-field">
-                  <span>Offset Pts</span>
-                  <input type="number" min="1" value={form.offset_points} onChange={(e) => setForm((s) => ({ ...s, offset_points: e.target.value }))} />
-                </label>
               </div>
             </div>
 
@@ -343,6 +364,183 @@ export default function StrategySettingsPanel() {
           </form>
         )}
       </div>
+
+      <ScannerExecCard
+        title="Move Detection Instance"
+        scanner="move_det"
+        fetcher={fetchMoveDetExecSettings}
+        updater={updateMoveDetExecSettings}
+      />
+      <ScannerExecCard
+        title="PDH/PDL Breakout Instance"
+        scanner="pdh_pdl"
+        fetcher={fetchPdhPdlExecSettings}
+        updater={updatePdhPdlExecSettings}
+      />
+    </div>
+  );
+}
+
+const EXEC_DEFAULTS = {
+  live_execution: false,
+  lots_mode: 'auto',
+  manual_lots: 1,
+  max_funds: 150000,
+  buffer_pct: 5,
+  max_lots: 20,
+};
+
+function ScannerExecCard({ title, scanner, fetcher, updater }) {
+  const [form, setForm] = useState(EXEC_DEFAULTS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setErr('');
+    try {
+      const res = await fetcher();
+      setForm({ ...EXEC_DEFAULTS, ...(res?.data || {}) });
+    } catch {
+      setErr('Failed to load settings');
+    }
+    setLoading(false);
+  }, [fetcher]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const onSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setMsg('');
+    setErr('');
+    try {
+      const payload = {
+        live_execution: !!form.live_execution,
+        lots_mode: form.lots_mode === 'manual' ? 'manual' : 'auto',
+        manual_lots: Math.max(1, num(form.manual_lots, 1)),
+        max_funds: Math.max(0, num(form.max_funds, 150000)),
+        buffer_pct: Math.max(0, num(form.buffer_pct, 5)),
+        max_lots: Math.max(1, num(form.max_lots, 20)),
+      };
+      const res = await updater(payload);
+      setForm({ ...EXEC_DEFAULTS, ...(res?.data?.settings || payload) });
+      setMsg('Saved');
+    } catch {
+      setErr('Failed to save');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="card" style={{ marginTop: 12 }}>
+      <div className="card-title" style={{ marginBottom: 8 }}>{title}</div>
+      {loading ? (
+        <p style={{ color: 'var(--text-secondary)' }}>Loading settings...</p>
+      ) : (
+        <form onSubmit={onSave} className="instance-form">
+          <div className="instance-row">
+            <div className="instance-label">Execution</div>
+            <div className="instance-grid instance-grid-6">
+              <label className="atl-field">
+                <span>Live Orders</span>
+                <select
+                  value={form.live_execution ? 'on' : 'off'}
+                  onChange={(e) => setForm((s) => ({ ...s, live_execution: e.target.value === 'on' }))}
+                >
+                  <option value="off">Disabled (alert only)</option>
+                  <option value="on">Enabled</option>
+                </select>
+                <small className="atl-help">Requires global Live mode (not Paper).</small>
+              </label>
+              <label className="atl-field">
+                <span>Lots Mode</span>
+                <select
+                  value={form.lots_mode}
+                  onChange={(e) => setForm((s) => ({ ...s, lots_mode: e.target.value }))}
+                >
+                  <option value="auto">Auto by Available Funds</option>
+                  <option value="manual">Manual</option>
+                </select>
+              </label>
+              {form.lots_mode === 'manual' ? (
+                <>
+                  <label className="atl-field">
+                    <span>Manual Lots</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.manual_lots}
+                      onChange={(e) => setForm((s) => ({ ...s, manual_lots: e.target.value }))}
+                    />
+                  </label>
+                  <div className="atl-field atl-field-placeholder">
+                    <span>Max Funds (₹)</span>
+                    <div className="atl-placeholder-text">Hidden in Manual mode</div>
+                  </div>
+                  <div className="atl-field atl-field-placeholder">
+                    <span>Buffer %</span>
+                    <div className="atl-placeholder-text">Hidden in Manual mode</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label className="atl-field">
+                    <span>Max Funds (₹)</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={form.max_funds}
+                      onChange={(e) => setForm((s) => ({ ...s, max_funds: e.target.value }))}
+                    />
+                    <small className="atl-help">0 = use full available cash.</small>
+                  </label>
+                  <label className="atl-field">
+                    <span>Buffer %</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={form.buffer_pct}
+                      onChange={(e) => setForm((s) => ({ ...s, buffer_pct: e.target.value }))}
+                    />
+                    <small className="atl-help">Reserve for slippage / fees.</small>
+                  </label>
+                  <div className="atl-field atl-field-placeholder">
+                    <span>Manual Lots</span>
+                    <div className="atl-placeholder-text">Hidden in Auto mode</div>
+                  </div>
+                </>
+              )}
+              <label className="atl-field">
+                <span>Max Lots Cap</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.max_lots}
+                  onChange={(e) => setForm((s) => ({ ...s, max_lots: e.target.value }))}
+                />
+                <small className="atl-help">Hard ceiling regardless of funds.</small>
+              </label>
+            </div>
+          </div>
+          <div className="instance-actions">
+            <button className="btn" type="submit" disabled={saving}>
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+            <button className="btn" type="button" onClick={load} disabled={saving}>
+              Reload
+            </button>
+            {msg && <span style={{ color: 'var(--accent-green)', fontSize: 12 }}>{msg}</span>}
+            {err && <span style={{ color: 'var(--accent-red)', fontSize: 12 }}>{err}</span>}
+          </div>
+        </form>
+      )}
     </div>
   );
 }

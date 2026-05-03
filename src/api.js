@@ -67,6 +67,12 @@ export const placeNowAtm = () => api.post('/api/atm/place-now');
 export const fetchAtlStraddleSettings = () => api.get('/api/strategy-settings/atl-straddle');
 export const updateAtlStraddleSettings = (payload) => api.put('/api/strategy-settings/atl-straddle', payload);
 
+// MoveDet & PDH/PDL execution settings (lots mode + funds)
+export const fetchMoveDetExecSettings = () => api.get('/api/strategy-settings/move-det');
+export const updateMoveDetExecSettings = (payload) => api.put('/api/strategy-settings/move-det', payload);
+export const fetchPdhPdlExecSettings = () => api.get('/api/strategy-settings/pdh-pdl');
+export const updatePdhPdlExecSettings = (payload) => api.put('/api/strategy-settings/pdh-pdl', payload);
+
 // Strategy Analytics (backtest results, rankings, today's plan)
 export const fetchStrategyAnalytics = () => api.get('/api/strategy-analytics');
 

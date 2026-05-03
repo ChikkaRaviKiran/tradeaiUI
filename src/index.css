@@ -504,6 +504,10 @@ tr:hover td {
   grid-template-columns: repeat(5, minmax(130px, 1fr));
 }
 
+.instance-grid-6 {
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+}
+
 .instance-actions {
   display: flex;
   justify-content: flex-end;
@@ -579,7 +583,8 @@ tr:hover td {
   }
 
   .instance-grid-4,
-  .instance-grid-5 {
+  .instance-grid-5,
+  .instance-grid-6 {
     grid-template-columns: 1fr;
   }
 }
