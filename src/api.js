@@ -56,6 +56,11 @@ export const reAuthenticateBroker = () => api.post('/api/broker/re-authenticate'
 export const fetchTradingAccount = () => api.get('/api/broker/trading-account');
 export const setTradingAccount = (account) => api.post('/api/broker/trading-account', { account });
 
+// Kite (Zerodha) — daily OAuth + credential management
+export const fetchKiteStatus = () => api.get('/api/broker/kite/status');
+export const fetchKiteLoginUrl = () => api.get('/api/auth/kite/login-url');
+export const updateKiteCredentials = (payload) => api.post('/api/broker/kite/update-credentials', payload);
+
 // Positions / history parity APIs
 export const fetchPositions = () => api.get('/api/positions');
 export const exitPositions = (payload) => api.post('/api/positions/exit', payload);

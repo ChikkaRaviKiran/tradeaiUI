@@ -6,6 +6,9 @@ import {
   reAuthenticateBroker,
   fetchTradingAccount,
   setTradingAccount,
+  fetchKiteStatus,
+  fetchKiteLoginUrl,
+  updateKiteCredentials,
 } from '../api';
 
 const STATUS_POLL_INTERVAL = 30000; // 30s
@@ -21,6 +24,11 @@ function BrokerSettings() {
   const [tradingAccount, setTradingAccountState] = useState(null);
   const [taSwitching, setTaSwitching] = useState(false);
   const [taResult, setTaResult] = useState(null);
+  const [kiteStatus, setKiteStatus] = useState(null);
+  const [kiteCreds, setKiteCreds] = useState({ api_key: '', api_secret: '' });
+  const [kiteSaving, setKiteSaving] = useState(false);
+  const [kiteResult, setKiteResult] = useState(null);
+  const [showKiteForm, setShowKiteForm] = useState(false);
   const [creds, setCreds] = useState({
     api_key: '',
     client_id: '',
@@ -41,6 +49,12 @@ function BrokerSettings() {
       setTradingAccountState(ta.data);
     } catch {
       setTradingAccountState(null);
+    }
+    try {
+      const ks = await fetchKiteStatus();
+      setKiteStatus(ks.data);
+    } catch {
+      setKiteStatus(null);
     }
   }, []);
 
@@ -112,6 +126,65 @@ function BrokerSettings() {
     setTaSwitching(false);
   };
 
+  const handleKiteLogin = async () => {
+    setKiteResult(null);
+    try {
+      const res = await fetchKiteLoginUrl();
+      const url = res.data?.login_url;
+      if (!url) {
+        setKiteResult({ success: false, error: res.data?.message || 'Could not get login URL' });
+        return;
+      }
+      // Open Kite OAuth in a new tab. After login, Kite redirects to
+      // /api/auth/kite/callback which writes a fresh access_token to .env.
+      window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      setKiteResult({
+        success: false,
+        error: e?.response?.data?.detail || 'Failed to get Kite login URL',
+      });
+    }
+  };
+
+  const handleKiteSaveCreds = async (e) => {
+    e.preventDefault();
+    const filled = Object.fromEntries(
+      Object.entries(kiteCreds).filter(([, v]) => v.trim())
+    );
+    if (Object.keys(filled).length === 0) return;
+    setKiteSaving(true);
+    setKiteResult(null);
+    try {
+      const res = await updateKiteCredentials(filled);
+      setKiteResult({ success: true, message: `Saved: ${res.data?.updated_fields?.join(', ')}` });
+      setKiteCreds({ api_key: '', api_secret: '' });
+      await loadStatus();
+    } catch (e2) {
+      setKiteResult({
+        success: false,
+        error: e2?.response?.data?.detail || 'Failed to save Kite credentials',
+      });
+    }
+    setKiteSaving(false);
+  };
+
+  // Detect successful Kite OAuth completion (callback redirects with
+  // ?kite_auth=success or ?kite_auth_error=...) and refresh status.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ok = params.get('kite_auth');
+    const err = params.get('kite_auth_error');
+    if (ok === 'success') {
+      setKiteResult({ success: true, message: `Kite authenticated (user_id=${params.get('user_id') || ''})` });
+      loadStatus();
+      // Clean URL so refreshing the page doesn't re-show the toast.
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (err) {
+      setKiteResult({ success: false, error: `Kite OAuth failed: ${err}` });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [loadStatus]);
+
   const authOk = status?.authenticated;
   const configured = status?.configured;
 
@@ -180,6 +253,112 @@ function BrokerSettings() {
             {taResult.success ? taResult.message : taResult.error}
           </div>
         )}
+      </div>
+
+      {/* Kite (Zerodha) Card — daily login + credentials */}
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+          <div>
+            <div className="card-title" style={{ marginBottom: 6 }}>Zerodha Kite</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              Kite access tokens expire daily around 07:30 IST. Re-login each
+              morning before market open to refresh the token.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => { setShowKiteForm(!showKiteForm); setKiteResult(null); }}
+              style={{
+                padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                border: '1px solid var(--border-light)', cursor: 'pointer',
+                background: 'transparent', color: 'var(--text-secondary)',
+              }}
+            >
+              {showKiteForm ? 'Cancel' : 'Edit Credentials'}
+            </button>
+            <button
+              onClick={handleKiteLogin}
+              disabled={!kiteStatus?.api_key_set || !kiteStatus?.api_secret_set}
+              style={{
+                padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                border: 'none', cursor: 'pointer',
+                background: 'rgba(16,185,129,0.15)', color: 'var(--accent-green)',
+                opacity: !kiteStatus?.api_key_set || !kiteStatus?.api_secret_set ? 0.5 : 1,
+              }}
+            >
+              Login to Kite
+            </button>
+          </div>
+        </div>
+
+        {/* Status row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <span style={{
+            display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
+            background: kiteStatus?.authenticated
+              ? 'var(--accent-green)'
+              : kiteStatus?.access_token_set ? 'var(--accent-yellow)' : 'var(--accent-red)',
+            boxShadow: `0 0 6px ${kiteStatus?.authenticated ? 'var(--accent-green)' : 'var(--accent-red)'}`,
+          }} />
+          <span style={{ fontSize: 14, fontWeight: 600 }}>
+            {kiteStatus?.authenticated
+              ? `Connected — ${kiteStatus.user_name || kiteStatus.user_id || 'user'}`
+              : kiteStatus?.access_token_set
+                ? 'Token set — not validated (login again if expired)'
+                : 'Not Authenticated — Login required'}
+          </span>
+        </div>
+
+        {/* Credential checklist */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, marginBottom: 8 }}>
+          <CredField label="API Key" set={kiteStatus?.api_key_set} />
+          <CredField label="API Secret" set={kiteStatus?.api_secret_set} />
+          <CredField label="Access Token" set={kiteStatus?.access_token_set} />
+        </div>
+
+        {showKiteForm && (
+          <form onSubmit={handleKiteSaveCreds} style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--accent-yellow)', marginBottom: 12, padding: '8px 12px', background: 'rgba(245,158,11,0.08)', borderRadius: 6 }}>
+              Get these from your Kite Connect developer console at developers.kite.trade.
+              System must be stopped before changing credentials.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <CredInput label="API Key" value={kiteCreds.api_key} onChange={(v) => setKiteCreds({ ...kiteCreds, api_key: v })} placeholder="Kite Connect API key" />
+              <CredInput label="API Secret" value={kiteCreds.api_secret} onChange={(v) => setKiteCreds({ ...kiteCreds, api_secret: v })} placeholder="Kite Connect API secret" type="password" />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button
+                type="submit"
+                disabled={kiteSaving || !Object.values(kiteCreds).some((v) => v.trim())}
+                style={{
+                  padding: '8px 20px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                  border: 'none', cursor: 'pointer',
+                  background: 'rgba(59,130,246,0.15)', color: 'var(--accent-blue)',
+                  opacity: kiteSaving || !Object.values(kiteCreds).some((v) => v.trim()) ? 0.5 : 1,
+                }}
+              >
+                {kiteSaving ? 'Saving...' : 'Save Credentials'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {kiteResult && (
+          <div style={{
+            marginTop: 12, padding: '8px 12px', borderRadius: 6, fontSize: 12,
+            background: kiteResult.success ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+            border: `1px solid ${kiteResult.success ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            color: kiteResult.success ? 'var(--accent-green)' : 'var(--accent-red)',
+          }}>
+            {kiteResult.success ? kiteResult.message : kiteResult.error}
+          </div>
+        )}
+
+        <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+          <strong>Daily flow:</strong> Click "Login to Kite" → log in on Zerodha (with TOTP) →
+          you'll be redirected back here automatically with a fresh token persisted to .env.
+          No system restart needed; the broker reloads the new token in-place.
+        </div>
       </div>
 
       {/* Connection Status Card */}
