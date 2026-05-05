@@ -4,6 +4,8 @@ import {
   testBrokerConnection,
   updateBrokerCredentials,
   reAuthenticateBroker,
+  fetchTradingAccount,
+  setTradingAccount,
 } from '../api';
 
 const STATUS_POLL_INTERVAL = 30000; // 30s
@@ -16,6 +18,9 @@ function BrokerSettings() {
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [tradingAccount, setTradingAccountState] = useState(null);
+  const [taSwitching, setTaSwitching] = useState(false);
+  const [taResult, setTaResult] = useState(null);
   const [creds, setCreds] = useState({
     api_key: '',
     client_id: '',
@@ -30,6 +35,12 @@ function BrokerSettings() {
       setStatus(res.data);
     } catch {
       setStatus(null);
+    }
+    try {
+      const ta = await fetchTradingAccount();
+      setTradingAccountState(ta.data);
+    } catch {
+      setTradingAccountState(null);
     }
   }, []);
 
@@ -84,11 +95,93 @@ function BrokerSettings() {
     setSaving(false);
   };
 
+  const handleTradingAccountChange = async (account) => {
+    if (!account || account === tradingAccount?.selected) return;
+    setTaSwitching(true);
+    setTaResult(null);
+    try {
+      const res = await setTradingAccount(account);
+      setTaResult({ success: true, message: res.data?.message || 'Trading account updated' });
+      await loadStatus();
+    } catch (e) {
+      setTaResult({
+        success: false,
+        error: e?.response?.data?.detail || 'Failed to switch trading account',
+      });
+    }
+    setTaSwitching(false);
+  };
+
   const authOk = status?.authenticated;
   const configured = status?.configured;
 
   return (
     <div>
+      {/* Trading Account Selector (Angel vs Kite) */}
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <div className="card-title" style={{ marginBottom: 6 }}>Trading Account</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+          Choose which broker places orders. All other strategy logic, expiry handling and
+          conditions stay the same. Data feed continues to use AngelOne in both modes.
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          {[
+            { id: 'angel', label: 'AngelOne (SmartAPI)' },
+            { id: 'kite', label: 'Zerodha Kite' },
+          ].map((opt) => {
+            const selected = tradingAccount?.selected === opt.id;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => handleTradingAccountChange(opt.id)}
+                disabled={taSwitching || tradingAccount?.running || selected}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: selected || tradingAccount?.running ? 'default' : 'pointer',
+                  border: selected
+                    ? '1px solid var(--accent-blue)'
+                    : '1px solid var(--border-light)',
+                  background: selected ? 'rgba(59,130,246,0.15)' : 'transparent',
+                  color: selected ? 'var(--accent-blue)' : 'var(--text-primary)',
+                  opacity: tradingAccount?.running && !selected ? 0.5 : 1,
+                }}
+              >
+                {selected ? '● ' : ''}{opt.label}
+              </button>
+            );
+          })}
+          {taSwitching && (
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Saving…</span>
+          )}
+        </div>
+        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
+          Active broker: <strong>{tradingAccount?.active || 'unknown'}</strong>
+          {tradingAccount?.restart_required && (
+            <span style={{ color: 'var(--accent-yellow)', marginLeft: 8 }}>
+              ⚠ Restart the system for the change to take effect.
+            </span>
+          )}
+          {tradingAccount?.running && (
+            <span style={{ color: 'var(--accent-yellow)', marginLeft: 8 }}>
+              System is running — stop it before changing accounts.
+            </span>
+          )}
+        </div>
+        {taResult && (
+          <div style={{
+            marginTop: 12, padding: '8px 12px', borderRadius: 6, fontSize: 12,
+            background: taResult.success ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+            border: `1px solid ${taResult.success ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            color: taResult.success ? 'var(--accent-green)' : 'var(--accent-red)',
+          }}>
+            {taResult.success ? taResult.message : taResult.error}
+          </div>
+        )}
+      </div>
+
       {/* Connection Status Card */}
       <div className="card" style={{ padding: 20, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>

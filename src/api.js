@@ -52,6 +52,10 @@ export const testBrokerConnection = () => api.post('/api/broker/test');
 export const updateBrokerCredentials = (creds) => api.post('/api/broker/update-credentials', creds);
 export const reAuthenticateBroker = () => api.post('/api/broker/re-authenticate');
 
+// Trading Account selection (Angel vs Kite)
+export const fetchTradingAccount = () => api.get('/api/broker/trading-account');
+export const setTradingAccount = (account) => api.post('/api/broker/trading-account', { account });
+
 // Positions / history parity APIs
 export const fetchPositions = () => api.get('/api/positions');
 export const exitPositions = (payload) => api.post('/api/positions/exit', payload);
