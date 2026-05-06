@@ -61,6 +61,12 @@ export const fetchKiteStatus = () => api.get('/api/broker/kite/status');
 export const fetchKiteLoginUrl = () => api.get('/api/auth/kite/login-url');
 export const updateKiteCredentials = (payload) => api.post('/api/broker/kite/update-credentials', payload);
 
+// Dhan — daily access-token rotation + credential management
+export const fetchDhanStatus = () => api.get('/api/broker/dhan/status');
+export const testDhanConnection = () => api.post('/api/broker/dhan/test');
+export const updateDhanCredentials = (payload) => api.post('/api/broker/dhan/update-credentials', payload);
+export const refreshDhanInstruments = () => api.post('/api/broker/dhan/refresh-instruments');
+
 // Positions / history parity APIs
 export const fetchPositions = () => api.get('/api/positions');
 export const exitPositions = (payload) => api.post('/api/positions/exit', payload);

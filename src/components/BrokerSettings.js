@@ -9,6 +9,10 @@ import {
   fetchKiteStatus,
   fetchKiteLoginUrl,
   updateKiteCredentials,
+  fetchDhanStatus,
+  testDhanConnection,
+  updateDhanCredentials,
+  refreshDhanInstruments,
 } from '../api';
 
 const STATUS_POLL_INTERVAL = 30000; // 30s
@@ -29,6 +33,13 @@ function BrokerSettings() {
   const [kiteSaving, setKiteSaving] = useState(false);
   const [kiteResult, setKiteResult] = useState(null);
   const [showKiteForm, setShowKiteForm] = useState(false);
+  const [dhanStatus, setDhanStatus] = useState(null);
+  const [dhanCreds, setDhanCreds] = useState({ client_id: '', access_token: '' });
+  const [dhanSaving, setDhanSaving] = useState(false);
+  const [dhanTesting, setDhanTesting] = useState(false);
+  const [dhanResult, setDhanResult] = useState(null);
+  const [showDhanForm, setShowDhanForm] = useState(false);
+  const [dhanRefreshing, setDhanRefreshing] = useState(false);
   const [creds, setCreds] = useState({
     api_key: '',
     client_id: '',
@@ -55,6 +66,12 @@ function BrokerSettings() {
       setKiteStatus(ks.data);
     } catch {
       setKiteStatus(null);
+    }
+    try {
+      const ds = await fetchDhanStatus();
+      setDhanStatus(ds.data);
+    } catch {
+      setDhanStatus(null);
     }
   }, []);
 
@@ -168,6 +185,74 @@ function BrokerSettings() {
     setKiteSaving(false);
   };
 
+  const handleDhanTest = async () => {
+    setDhanTesting(true);
+    setDhanResult(null);
+    try {
+      const res = await testDhanConnection();
+      setDhanResult(res.data);
+    } catch (e) {
+      setDhanResult({
+        success: false,
+        error: e?.response?.data?.detail || 'Dhan test failed',
+      });
+    }
+    setDhanTesting(false);
+  };
+
+  const handleDhanSaveCreds = async (e, opts = {}) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const filled = Object.fromEntries(
+      Object.entries(dhanCreds).filter(([, v]) => v.trim())
+    );
+    if (Object.keys(filled).length === 0 && !opts.activate) return;
+    if (opts.activate) filled.activate = true;
+    setDhanSaving(true);
+    setDhanResult(null);
+    try {
+      const res = await updateDhanCredentials(filled);
+      setDhanResult({
+        success: true,
+        message: res.data?.note
+          ? `${(res.data.updated_fields || []).join(', ')} — ${res.data.note}`
+          : `Saved: ${(res.data.updated_fields || []).join(', ')}`,
+      });
+      setDhanCreds({ client_id: '', access_token: '' });
+      await loadStatus();
+    } catch (e2) {
+      setDhanResult({
+        success: false,
+        error: e2?.response?.data?.detail || 'Failed to save Dhan credentials',
+      });
+    }
+    setDhanSaving(false);
+  };
+
+  const handleDhanRefreshInstruments = async () => {
+    setDhanRefreshing(true);
+    setDhanResult(null);
+    try {
+      const res = await refreshDhanInstruments();
+      if (res.data?.ok) {
+        setDhanResult({
+          success: true,
+          message: `Scrip master reloaded: ${res.data.instruments_loaded} instruments`,
+        });
+      } else {
+        setDhanResult({
+          success: false,
+          error: res.data?.error || 'Refresh failed',
+        });
+      }
+    } catch (e) {
+      setDhanResult({
+        success: false,
+        error: e?.response?.data?.detail || 'Refresh failed',
+      });
+    }
+    setDhanRefreshing(false);
+  };
+
   // Detect successful Kite OAuth completion (callback redirects with
   // ?kite_auth=success or ?kite_auth_error=...) and refresh status.
   useEffect(() => {
@@ -201,6 +286,7 @@ function BrokerSettings() {
           {[
             { id: 'angel', label: 'AngelOne (SmartAPI)' },
             { id: 'kite', label: 'Zerodha Kite' },
+            { id: 'dhan', label: 'Dhan' },
           ].map((opt) => {
             const selected = tradingAccount?.selected === opt.id;
             return (
@@ -358,6 +444,152 @@ function BrokerSettings() {
           <strong>Daily flow:</strong> Click "Login to Kite" → log in on Zerodha (with TOTP) →
           you'll be redirected back here automatically with a fresh token persisted to .env.
           No system restart needed; the broker reloads the new token in-place.
+        </div>
+      </div>
+
+      {/* Dhan Card — daily access-token rotation + activation */}
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+          <div>
+            <div className="card-title" style={{ marginBottom: 6 }}>Dhan</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              Dhan access tokens expire daily. Paste a fresh token from the Dhan
+              dashboard each morning — it hot-reloads without a restart.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => { setShowDhanForm(!showDhanForm); setDhanResult(null); }}
+              style={{
+                padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                border: '1px solid var(--border-light)', cursor: 'pointer',
+                background: 'transparent', color: 'var(--text-secondary)',
+              }}
+            >
+              {showDhanForm ? 'Cancel' : 'Edit Credentials'}
+            </button>
+            <button
+              onClick={handleDhanRefreshInstruments}
+              disabled={dhanRefreshing || dhanStatus?.active_broker !== 'Dhan'}
+              title={dhanStatus?.active_broker !== 'Dhan' ? 'Activate Dhan and restart first' : ''}
+              style={{
+                padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                border: '1px solid var(--border-light)', cursor: 'pointer',
+                background: 'transparent', color: 'var(--text-secondary)',
+                opacity: dhanRefreshing || dhanStatus?.active_broker !== 'Dhan' ? 0.5 : 1,
+              }}
+            >
+              {dhanRefreshing ? 'Refreshing…' : 'Refresh Scrip Master'}
+            </button>
+            <button
+              onClick={handleDhanTest}
+              disabled={dhanTesting || !dhanStatus?.client_id_set || !dhanStatus?.access_token_set}
+              style={{
+                padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                border: 'none', cursor: 'pointer',
+                background: 'rgba(59,130,246,0.15)', color: 'var(--accent-blue)',
+                opacity: dhanTesting || !dhanStatus?.client_id_set || !dhanStatus?.access_token_set ? 0.5 : 1,
+              }}
+            >
+              {dhanTesting ? 'Testing…' : 'Test Connection'}
+            </button>
+          </div>
+        </div>
+
+        {/* Status row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <span style={{
+            display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
+            background: dhanStatus?.authenticated
+              ? 'var(--accent-green)'
+              : dhanStatus?.access_token_set ? 'var(--accent-yellow)' : 'var(--accent-red)',
+            boxShadow: `0 0 6px ${dhanStatus?.authenticated ? 'var(--accent-green)' : 'var(--accent-red)'}`,
+          }} />
+          <span style={{ fontSize: 14, fontWeight: 600 }}>
+            {dhanStatus?.authenticated
+              ? `Connected${dhanStatus.available_balance != null ? ` — ₹${Number(dhanStatus.available_balance).toLocaleString('en-IN')} available` : ''}`
+              : dhanStatus?.access_token_set
+                ? (dhanStatus?.active_broker === 'Dhan'
+                    ? 'Token set — auth failed (likely expired, paste a fresh one)'
+                    : 'Token set — Dhan not active (activate + restart to validate)')
+                : 'Not Authenticated — credentials missing'}
+          </span>
+        </div>
+
+        {dhanStatus?.error && (
+          <div style={{ fontSize: 11, color: 'var(--accent-red)', marginBottom: 10 }}>
+            {dhanStatus.error}
+          </div>
+        )}
+
+        {/* Credential checklist */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, marginBottom: 8 }}>
+          <CredField label="Client ID" set={dhanStatus?.client_id_set} value={dhanStatus?.client_id} />
+          <CredField label="Access Token" set={dhanStatus?.access_token_set} />
+        </div>
+
+        {showDhanForm && (
+          <form onSubmit={handleDhanSaveCreds} style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--accent-yellow)', marginBottom: 12, padding: '8px 12px', background: 'rgba(245,158,11,0.08)', borderRadius: 6 }}>
+              Generate a fresh access token at <a href="https://web.dhan.co" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-blue)' }}>web.dhan.co</a> → My Profile → DhanHQ Trading APIs.
+              Tokens rotate every morning; saving here hot-reloads the broker (no restart).
+              The system must be stopped before changing credentials.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <CredInput label="Client ID" value={dhanCreds.client_id} onChange={(v) => setDhanCreds({ ...dhanCreds, client_id: v })} placeholder="Dhan client ID (e.g. 1100123456)" />
+              <CredInput label="Access Token" value={dhanCreds.access_token} onChange={(v) => setDhanCreds({ ...dhanCreds, access_token: v })} placeholder="JWT access token" type="password" />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={(e) => handleDhanSaveCreds(e, { activate: true })}
+                disabled={dhanSaving}
+                title="Saves credentials AND switches TRADING_ACCOUNT=dhan (restart required)"
+                style={{
+                  padding: '8px 20px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                  border: '1px solid var(--border-light)', cursor: 'pointer',
+                  background: 'transparent', color: 'var(--accent-yellow)',
+                  opacity: dhanSaving ? 0.5 : 1,
+                }}
+              >
+                Save & Activate Dhan
+              </button>
+              <button
+                type="submit"
+                disabled={dhanSaving || !Object.values(dhanCreds).some((v) => v.trim())}
+                style={{
+                  padding: '8px 20px', borderRadius: 6, fontSize: 13, fontWeight: 600,
+                  border: 'none', cursor: 'pointer',
+                  background: 'rgba(59,130,246,0.15)', color: 'var(--accent-blue)',
+                  opacity: dhanSaving || !Object.values(dhanCreds).some((v) => v.trim()) ? 0.5 : 1,
+                }}
+              >
+                {dhanSaving ? 'Saving…' : 'Save Credentials'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {dhanResult && (
+          <div style={{
+            marginTop: 12, padding: '8px 12px', borderRadius: 6, fontSize: 12,
+            background: dhanResult.success ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
+            border: `1px solid ${dhanResult.success ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            color: dhanResult.success ? 'var(--accent-green)' : 'var(--accent-red)',
+          }}>
+            {dhanResult.success
+              ? (dhanResult.message
+                  || (dhanResult.available_balance != null
+                      ? `Connected — ₹${Number(dhanResult.available_balance).toLocaleString('en-IN')} available`
+                      : 'Connection Successful'))
+              : dhanResult.error}
+          </div>
+        )}
+
+        <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+          <strong>Daily flow:</strong> 1) Generate token in Dhan dashboard. 2) Click "Edit Credentials"
+          → paste token → "Save Credentials" (broker hot-reloads). 3) "Test Connection" to verify.
+          Use "Save & Activate Dhan" only the first time to switch <code>TRADING_ACCOUNT=dhan</code> (restart required).
         </div>
       </div>
 
