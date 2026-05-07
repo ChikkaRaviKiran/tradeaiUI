@@ -29,7 +29,7 @@ function BrokerSettings() {
   const [taSwitching, setTaSwitching] = useState(false);
   const [taResult, setTaResult] = useState(null);
   const [kiteStatus, setKiteStatus] = useState(null);
-  const [kiteCreds, setKiteCreds] = useState({ api_key: '', api_secret: '' });
+  const [kiteCreds, setKiteCreds] = useState({ api_key: '', api_secret: '', proxy_url: '' });
   const [kiteSaving, setKiteSaving] = useState(false);
   const [kiteResult, setKiteResult] = useState(null);
   const [showKiteForm, setShowKiteForm] = useState(false);
@@ -166,7 +166,8 @@ function BrokerSettings() {
   const handleKiteSaveCreds = async (e) => {
     e.preventDefault();
     const filled = Object.fromEntries(
-      Object.entries(kiteCreds).filter(([, v]) => v.trim())
+      // proxy_url may be intentionally cleared (empty string disables proxy)
+      Object.entries(kiteCreds).filter(([k, v]) => k === 'proxy_url' || v.trim())
     );
     if (Object.keys(filled).length === 0) return;
     setKiteSaving(true);
@@ -174,7 +175,7 @@ function BrokerSettings() {
     try {
       const res = await updateKiteCredentials(filled);
       setKiteResult({ success: true, message: `Saved: ${res.data?.updated_fields?.join(', ')}` });
-      setKiteCreds({ api_key: '', api_secret: '' });
+      setKiteCreds({ api_key: '', api_secret: '', proxy_url: '' });
       await loadStatus();
     } catch (e2) {
       setKiteResult({
@@ -411,6 +412,17 @@ function BrokerSettings() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <CredInput label="API Key" value={kiteCreds.api_key} onChange={(v) => setKiteCreds({ ...kiteCreds, api_key: v })} placeholder="Kite Connect API key" />
               <CredInput label="API Secret" value={kiteCreds.api_secret} onChange={(v) => setKiteCreds({ ...kiteCreds, api_secret: v })} placeholder="Kite Connect API secret" type="password" />
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <CredInput
+                label="Outbound Proxy URL (optional)"
+                value={kiteCreds.proxy_url}
+                onChange={(v) => setKiteCreds({ ...kiteCreds, proxy_url: v })}
+                placeholder="socks5://user:pass@host:1080  (leave empty to disable)"
+              />
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                Current: {kiteStatus?.proxy_enabled ? (kiteStatus?.proxy_url?.replace(/\/\/[^@]*@/, '//***:***@') || 'set') : 'direct (no proxy)'}
+              </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
               <button
