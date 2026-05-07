@@ -40,9 +40,10 @@ export default function ATMStrategyPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetchAtmRuntime();
-      if (res?.data?.status === 'ok') {
-        setRuntime(res.data.runtime || null);
-      }
+      // Backend returns { runtime: {...} }. Earlier prototype expected a
+      // status:'ok' wrapper which was never sent — accept either shape.
+      const rt = res?.data?.runtime ?? res?.data ?? null;
+      if (rt) setRuntime(rt);
     } catch {
       // noop
     }
