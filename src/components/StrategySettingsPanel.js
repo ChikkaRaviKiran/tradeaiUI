@@ -119,7 +119,9 @@ export default function StrategySettingsPanel() {
 
   const onSave = async (e) => {
     e.preventDefault();
-    await saveWith();
+    // "Create" should also enable the strategy — without this, the scanner
+    // skips it on every cycle (enabled defaults to false in DEFAULTS).
+    await saveWith({ enabled: true });
   };
 
   return (
