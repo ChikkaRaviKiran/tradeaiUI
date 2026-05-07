@@ -321,7 +321,10 @@ export default function StrategySettingsPanel() {
                 <label className="atl-field">
                   <span>Account</span>
                   <select value={form.execution_account} onChange={(e) => setForm((s) => ({ ...s, execution_account: e.target.value }))}>
-                    <option value="Primary">{`Live (${(accountInfo.active || 'angel').toUpperCase()})${accountInfo.running ? '' : ' — idle'}`}</option>
+                    <option value="Primary">{`Primary (${(accountInfo.active || 'angel').toUpperCase()})${accountInfo.running ? '' : ' \u2014 idle'}`}</option>
+                    <option value="Live (Kite)">Live (Kite)</option>
+                    <option value="Live (Dhan)">Live (Dhan)</option>
+                    <option value="Live (Angel)">Live (Angel)</option>
                     <option value="Paper">Paper Trading</option>
                   </select>
                 </label>
