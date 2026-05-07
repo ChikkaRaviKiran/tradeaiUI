@@ -189,7 +189,10 @@ function App() {
               </span>
             )}
             {systemStatus.db_connected === false && (
-              <span style={{ color: 'var(--accent-red)', marginLeft: 6 }}>· DB Down</span>
+              <span
+                style={{ color: 'var(--accent-red)', marginLeft: 6, cursor: 'help' }}
+                title={systemStatus.db_error || 'Database unreachable'}
+              >· DB Down</span>
             )}
             {brokerStatus && !brokerStatus.authenticated && brokerStatus.configured && (
               <span
