@@ -123,8 +123,16 @@ jobs:
 
             pull_with_recovery "${FRONTEND_IMAGE}:${FRONTEND_TAG}"
 
+            # Remove any stale/half-recreated frontend containers before
+            # bringing the service up. Compose occasionally leaves dangling
+            # containers (e.g. <hash>_tradeai-frontend) when a previous deploy
+            # was killed mid-recreate, which then breaks the next `up -d`.
+            sudo docker ps -a --format '{{.ID}} {{.Names}}' \
+              | awk '/tradeai-frontend/ {print $1}' \
+              | xargs -r sudo docker rm -f 2>/dev/null || true
+
             # Start frontend and reload system nginx
-            sudo -E docker compose -f docker-compose.prod.yml up -d --no-deps frontend
+            sudo -E docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate frontend
             sudo systemctl reload nginx
 
             # Clean up old images
