@@ -3,6 +3,7 @@ import {
   fetchAtlStraddleSettings,
   fetchMoveDetExecSettings,
   fetchPdhPdlExecSettings,
+  fetchTradingAccount,
   placeNowAtm,
   updateAtlStraddleSettings,
   updateMoveDetExecSettings,
@@ -45,6 +46,7 @@ export default function StrategySettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [accountInfo, setAccountInfo] = useState({ active: 'angel', running: false });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,6 +56,17 @@ export default function StrategySettingsPanel() {
       setForm({ ...DEFAULTS, ...(res?.data || {}) });
     } catch {
       setError('Failed to load ATL Straddle settings');
+    }
+    try {
+      const acc = await fetchTradingAccount();
+      if (acc?.data) {
+        setAccountInfo({
+          active: acc.data.active || acc.data.selected || 'angel',
+          running: !!acc.data.running,
+        });
+      }
+    } catch {
+      /* non-fatal */
     }
     setLoading(false);
   }, []);
@@ -308,7 +321,7 @@ export default function StrategySettingsPanel() {
                 <label className="atl-field">
                   <span>Account</span>
                   <select value={form.execution_account} onChange={(e) => setForm((s) => ({ ...s, execution_account: e.target.value }))}>
-                    <option value="Primary">Primary Account</option>
+                    <option value="Primary">{`Live (${(accountInfo.active || 'angel').toUpperCase()})${accountInfo.running ? '' : ' — idle'}`}</option>
                     <option value="Paper">Paper Trading</option>
                   </select>
                 </label>
