@@ -96,7 +96,7 @@ export default function StrategySettingsPanel() {
         strategy_type: 'ATM_STRADDLE',
         lots: Math.max(1, num(merged.lots, 1)),
         strike_interval: Math.max(1, num(merged.strike_interval, 50)),
-        offset_points: Math.max(1, num(merged.offset_points, 500)),
+        offset_points: Math.max(0, num(merged.offset_points, 500)),
         rolling_points: Math.max(1, num(merged.rolling_points, 300)),
         sl_lower: Math.max(0, num(merged.sl_lower, 0)),
         sl_upper: Math.max(0, num(merged.sl_upper, 0)),
@@ -175,7 +175,7 @@ export default function StrategySettingsPanel() {
                 </label>
                 <label className="atl-field">
                   <span>Offset Pts</span>
-                  <input type="number" min="1" value={form.offset_points} onChange={(e) => setForm((s) => ({ ...s, offset_points: e.target.value }))} />
+                  <input type="number" min="0" value={form.offset_points} onChange={(e) => setForm((s) => ({ ...s, offset_points: e.target.value }))} />
                   <small className="atl-help">Short strangle distance from ATM (strategy-level setting)</small>
                 </label>
               </div>
