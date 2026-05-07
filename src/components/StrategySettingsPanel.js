@@ -93,15 +93,18 @@ export default function StrategySettingsPanel() {
         merged.sl_upper = 0;
       }
 
-      const hedgeMode = String(merged.hedge_mode || 'none');
+      const hedgeMode = String(merged.hedge_mode || 'none') === 'none' ? 'none' : 'premium';
       merged.hedge_mode = hedgeMode;
       merged.hedge_enabled = hedgeMode !== 'none';
       if (hedgeMode === 'premium') {
         merged.hedge_otm_points = 500;
-      } else if (hedgeMode === 'otm_points') {
-        merged.hedge_premium = 3;
       } else {
         merged.hedge_lots = 0;
+      }
+      // ATM Straddle has no offset — both legs always at ATM
+      const stratType = String(merged.strategy_type || 'ATM_STRADDLE');
+      if (stratType === 'ATM_STRADDLE') {
+        merged.offset_points = 0;
       }
 
       const payload = {
@@ -188,11 +191,13 @@ export default function StrategySettingsPanel() {
                   <span>Strike Int</span>
                   <input type="number" min="1" value={form.strike_interval} onChange={(e) => setForm((s) => ({ ...s, strike_interval: e.target.value }))} />
                 </label>
-                <label className="atl-field">
-                  <span>Offset Pts</span>
-                  <input type="number" min="0" value={form.offset_points} onChange={(e) => setForm((s) => ({ ...s, offset_points: e.target.value }))} />
-                  <small className="atl-help">Short strangle distance from ATM (strategy-level setting)</small>
-                </label>
+                {form.strategy_type !== 'ATM_STRADDLE' ? (
+                  <label className="atl-field">
+                    <span>Offset Pts</span>
+                    <input type="number" min="0" value={form.offset_points} onChange={(e) => setForm((s) => ({ ...s, offset_points: e.target.value }))} />
+                    <small className="atl-help">Short strangle distance from ATM</small>
+                  </label>
+                ) : null}
               </div>
             </div>
 
@@ -252,7 +257,7 @@ export default function StrategySettingsPanel() {
                 <label className="atl-field">
                   <span>Hedge Type</span>
                   <select
-                    value={form.hedge_mode || (form.hedge_enabled ? 'premium' : 'none')}
+                    value={form.hedge_mode === 'none' ? 'none' : 'premium'}
                     onChange={(e) => setForm((s) => ({
                       ...s,
                       hedge_mode: e.target.value,
@@ -261,10 +266,9 @@ export default function StrategySettingsPanel() {
                   >
                     <option value="none">Disabled</option>
                     <option value="premium">Premium Target</option>
-                    <option value="otm_points">OTM Points</option>
                   </select>
                 </label>
-                {(form.hedge_mode || 'none') === 'premium' ? (
+                {(form.hedge_mode || 'none') !== 'none' ? (
                   <>
                     <label className="atl-field">
                       <span>Target Premium (₹)</span>
@@ -276,24 +280,8 @@ export default function StrategySettingsPanel() {
                       <small className="atl-help">0 = match strategy lots</small>
                     </label>
                     <div className="atl-field atl-field-placeholder">
-                      <span>OTM Points</span>
-                      <div className="atl-placeholder-text">Hidden for Premium Target mode</div>
-                    </div>
-                  </>
-                ) : (form.hedge_mode || 'none') === 'otm_points' ? (
-                  <>
-                    <label className="atl-field">
-                      <span>OTM Points</span>
-                      <input type="number" min="1" value={form.hedge_otm_points || 500} onChange={(e) => setForm((s) => ({ ...s, hedge_otm_points: e.target.value }))} />
-                    </label>
-                    <label className="atl-field">
-                      <span>Hedge Lots</span>
-                      <input type="number" min="0" value={form.hedge_lots} onChange={(e) => setForm((s) => ({ ...s, hedge_lots: e.target.value }))} />
-                      <small className="atl-help">0 = match strategy lots</small>
-                    </label>
-                    <div className="atl-field atl-field-placeholder">
-                      <span>Target Premium (₹)</span>
-                      <div className="atl-placeholder-text">Hidden for OTM Points mode</div>
+                      <span>Hedge Inputs</span>
+                      <div className="atl-placeholder-text">Hedge always uses Premium Target</div>
                     </div>
                   </>
                 ) : (
