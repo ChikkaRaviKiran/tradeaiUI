@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { fetchAtmRuntime, forceCloseAtm } from '../api';
+import { fetchAtmRuntime, forceCloseAtm, resetAtm } from '../api';
 
 const REFRESH_MS = 5000;
 
@@ -36,6 +36,7 @@ export default function ATMStrategyPage() {
   const [runtime, setRuntime] = useState(null);
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -68,6 +69,29 @@ export default function ATMStrategyPage() {
   return (
     <section className="section" style={{ marginTop: 4 }}>
       <h2 className="section-title">ATM Strategy</h2>
+
+      {runtime?.halted && (
+        <div className="card" style={{ marginBottom: 12, borderLeft: '4px solid #f87171', background: 'rgba(248,113,113,0.08)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <div className="card-title" style={{ color: '#f87171' }}>⛔ STRATEGY HALTED — no further entries today</div>
+              <div style={{ color: 'var(--text-secondary)', marginTop: 4 }}>{runtime.halt_reason || 'Order placement failed.'}</div>
+            </div>
+            <button
+              className="btn"
+              disabled={resetting}
+              onClick={async () => {
+                if (!window.confirm('Clear halt? Strategy will attempt entry again on the next cycle.')) return;
+                setResetting(true);
+                try { await resetAtm(); await load(); } catch { /* noop */ }
+                setResetting(false);
+              }}
+            >
+              {resetting ? 'Resetting...' : 'Reset Halt'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
