@@ -70,6 +70,7 @@ export const refreshDhanInstruments = () => api.post('/api/broker/dhan/refresh-i
 // Positions / history parity APIs
 export const fetchPositions = () => api.get('/api/positions');
 export const exitPositions = (payload) => api.post('/api/positions/exit', payload);
+export const rearmPositions = () => api.post('/api/positions/rearm');
 export const fetchTradeHistory = (params = {}) => api.get('/api/trade-history', { params });
 export const captureEodSnapshot = () => api.post('/api/eod/snapshot');
 

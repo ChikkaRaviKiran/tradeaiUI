@@ -1,125 +1,135 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import {
   fetchAllSnapshots,
   fetchGlobalIndices,
-  fetchActiveTrades,
-  fetchTodayTrades,
-  fetchPerformance,
-  fetchAlerts,
   fetchSystemStatus,
   fetchIntelligence,
-  refreshIntelligence,
+  fetchAlerts,
+  fetchBrokerStatus,
   startSystem,
   stopSystem,
   setTradingMode,
-  fetchBrokerStatus,
-  fetchStrategySelection,
-  fetchPerformanceComparison,
-  fetchSystemActivity,
 } from './api';
 import MarketOverview from './components/MarketOverview';
-import ActiveTrades from './components/ActiveTrades';
-import CompletedTrades from './components/CompletedTrades';
-import AlertsPanel from './components/AlertsPanel';
-import BrokerSettings from './components/BrokerSettings';
-import BacktestPanel from './components/BacktestPanel';
-import StrategyHub from './components/StrategyHub';
-import StrategySelectionPanel from './components/StrategySelectionPanel';
-import SystemActivityLog from './components/SystemActivityLog';
 import ScannersPanel from './components/ScannersPanel';
-import StrategySettingsPanel from './components/StrategySettingsPanel';
+import ATMStrategyPage from './components/ATMStrategyPage';
 import PositionsPage from './components/PositionsPage';
 import HistoryPage from './components/HistoryPage';
-import ATMStrategyPage from './components/ATMStrategyPage';
+import AlertsPanel from './components/AlertsPanel';
+import BrokerSettings from './components/BrokerSettings';
+import StrategySettingsPanel from './components/StrategySettingsPanel';
 
-const REFRESH_INTERVAL = 15000;
+const REFRESH_INTERVAL = 12000;
+
+function CockpitPage({ allSnapshots, globalIndices, systemStatus, intelligence, alerts }) {
+  return (
+    <section className="section" style={{ marginTop: 4 }}>
+      <h2 className="section-title">Market</h2>
+      <MarketOverview allSnapshots={allSnapshots} globalIndices={globalIndices} />
+
+      <h2 className="section-title" style={{ marginTop: 16 }}>Scanner Status</h2>
+      <ScannersPanel systemStatus={systemStatus} />
+
+      <div className="grid grid-2" style={{ marginTop: 16 }}>
+        <div className="card">
+          <div className="card-title" style={{ marginBottom: 8 }}>AI Bias</div>
+          <div className="stat-value" style={{ fontSize: '1.2rem' }}>
+            {(intelligence?.insight?.market_bias || 'unknown').toUpperCase()}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+            Confidence: {intelligence?.insight?.confidence ?? 0}%
+          </div>
+          {intelligence?.fii_dii && (
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+              Net Institutional: {(intelligence.fii_dii.net_institutional || 0) >= 0 ? '+' : ''}
+              {(intelligence.fii_dii.net_institutional || 0).toFixed(0)} Cr
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="card-title" style={{ marginBottom: 8 }}>Recent Alerts</div>
+          <AlertsPanel alerts={alerts} compact />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SettingsPage({ brokerStatus }) {
+  return (
+    <section className="section" style={{ marginTop: 4 }}>
+      <div className="settings-subnav">
+        <NavLink to="/settings/strategy" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+          Strategy
+        </NavLink>
+        <NavLink to="/settings/broker" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+          Broker
+        </NavLink>
+      </div>
+
+      <Routes>
+        <Route path="strategy" element={<StrategySettingsPanel />} />
+        <Route
+          path="broker"
+          element={(
+            <div style={{ marginTop: 12 }}>
+              <BrokerSettings />
+              {brokerStatus && (
+                <div className="card" style={{ marginTop: 12 }}>
+                  <div className="card-title" style={{ marginBottom: 6 }}>Broker Runtime</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                    Active Account: <strong>{String(brokerStatus.trading_account || 'angel').toUpperCase()}</strong>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                    Authenticated: <strong>{brokerStatus.authenticated ? 'Yes' : 'No'}</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        />
+        <Route path="*" element={<Navigate to="/settings/strategy" replace />} />
+      </Routes>
+    </section>
+  );
+}
 
 function App() {
-  const [tab, setTab] = useState('scanners');
   const [allSnapshots, setAllSnapshots] = useState({});
   const [globalIndices, setGlobalIndices] = useState([]);
-  const [activeTrades, setActiveTrades] = useState([]);
-  const [todayTrades, setTodayTrades] = useState([]);
-  const [performance, setPerformance] = useState(null);
-  const [alerts, setAlerts] = useState([]);
-  const [systemStatus, setSystemStatus] = useState({ status: 'stopped' });
+  const [systemStatus, setSystemStatus] = useState({ status: 'stopped', scanners: {} });
   const [intelligence, setIntelligence] = useState(null);
+  const [alerts, setAlerts] = useState([]);
   const [brokerStatus, setBrokerStatus] = useState(null);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [strategySelection, setStrategySelection] = useState(null);
-  const [performanceComparison, setPerformanceComparison] = useState(null);
-  const [systemActivity, setSystemActivity] = useState(null);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const prevAlertCountRef = useRef(0);
-
-  // Request browser notification permission on mount
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(p => setNotificationsEnabled(p === 'granted'));
-    } else if ('Notification' in window && Notification.permission === 'granted') {
-      setNotificationsEnabled(true);
-    }
-  }, []);
-
-  // Fire browser notification for new signal/exit alerts
-  useEffect(() => {
-    if (!alerts || alerts.length === 0) return;
-    if (prevAlertCountRef.current === 0) {
-      prevAlertCountRef.current = alerts.length;
-      return;
-    }
-    const newCount = alerts.length - prevAlertCountRef.current;
-    if (newCount > 0 && notificationsEnabled) {
-      const latest = alerts[0]; // alerts are newest-first
-      if (latest && (latest.alert_type === 'signal' || latest.alert_type === 'exit')) {
-        try {
-          new Notification(`TradeAI: ${latest.title}`, {
-            body: latest.message?.substring(0, 120),
-            icon: '/favicon.ico',
-            tag: `tradeai-${latest.id}`,
-          });
-        } catch {}
-      }
-    }
-    prevAlertCountRef.current = alerts.length;
-  }, [alerts, notificationsEnabled]);
 
   const loadData = useCallback(async () => {
     try {
       const results = await Promise.allSettled([
         fetchAllSnapshots(),
         fetchGlobalIndices(),
-        fetchActiveTrades(),
-        fetchTodayTrades(),
-        fetchPerformance(),
-        fetchAlerts(),
         fetchSystemStatus(),
         fetchIntelligence(),
+        fetchAlerts(20),
         fetchBrokerStatus(),
-        fetchStrategySelection(),
-        fetchPerformanceComparison(),
-        fetchSystemActivity(),
       ]);
 
-      const val = (i) => results[i].status === 'fulfilled' ? results[i].value.data : null;
+      const val = (i) => (results[i].status === 'fulfilled' ? results[i].value.data : null);
 
       if (val(0) !== null) setAllSnapshots(val(0) || {});
-      if (val(1) !== null) setGlobalIndices(val(1));
-      if (val(2) !== null) setActiveTrades(val(2));
-      if (val(3) !== null) setTodayTrades(val(3));
-      if (val(4) !== null) setPerformance(val(4));
-      if (val(5) !== null) setAlerts(val(5));
-      if (val(6) !== null) setSystemStatus(val(6));
-      if (val(7) !== null) setIntelligence(val(7));
-      if (val(8) !== null) setBrokerStatus(val(8));
-      if (val(9) !== null) setStrategySelection(val(9));
-      if (val(10) !== null) setPerformanceComparison(val(10));
-      if (val(11) !== null) setSystemActivity(val(11));
+      if (val(1) !== null) setGlobalIndices(val(1) || []);
+      if (val(2) !== null) setSystemStatus(val(2) || { status: 'stopped', scanners: {} });
+      if (val(3) !== null) setIntelligence(val(3));
+      if (val(4) !== null) setAlerts(val(4) || []);
+      if (val(5) !== null) setBrokerStatus(val(5));
+
       setLastUpdated(new Date());
-      setError(null);
-    } catch (err) {
-      setError('Failed to connect to backend');
+      setError('');
+    } catch {
+      setError('Backend is unreachable.');
     }
   }, []);
 
@@ -130,122 +140,62 @@ function App() {
   }, [loadData]);
 
   const handleStart = async () => {
-    try { await startSystem(); setSystemStatus((s) => ({ ...s, status: 'running' })); } catch {}
+    try {
+      await startSystem();
+      await loadData();
+    } catch {
+      setError('Failed to start system.');
+    }
   };
 
   const handleStop = async () => {
-    try { await stopSystem(); setSystemStatus((s) => ({ ...s, status: 'stopped' })); } catch {}
-  };
-
-  const handleRefreshIntelligence = async () => {
     try {
-      await refreshIntelligence();
-      setTimeout(async () => {
-        try { const res = await fetchIntelligence(); setIntelligence(res.data); } catch {}
-      }, 5000);
-    } catch {}
+      await stopSystem();
+      await loadData();
+    } catch {
+      setError('Failed to stop system.');
+    }
   };
 
   const handleModeToggle = async () => {
     const next = systemStatus.paper_trading ? 'live' : 'paper';
-    if (next === 'live' && !window.confirm('Switch to LIVE trading? Real orders will be placed.')) return;
+    if (next === 'live' && !window.confirm('Switch to LIVE mode? Real orders will be placed.')) return;
     try {
-      const res = await setTradingMode(next);
-      setSystemStatus((s) => ({ ...s, paper_trading: res.data.paper_trading }));
+      await setTradingMode(next);
+      await loadData();
     } catch (e) {
-      alert(e?.response?.data?.detail || 'Failed to switch mode');
+      setError(e?.response?.data?.detail || 'Failed to switch trading mode.');
     }
   };
 
   const isRunning = systemStatus.status === 'running';
-  const allActive = activeTrades;
-  const allClosed = todayTrades.filter((t) => t.status === 'closed');
-
-  // Market KPI data
-  const niftySnap = allSnapshots.NIFTY;
-  const sensexSnap = allSnapshots.SENSEX;
-  const niftyChange = niftySnap?.prev_day_close ? (((niftySnap.price || 0) - niftySnap.prev_day_close) / niftySnap.prev_day_close * 100) : null;
-  const sensexChange = sensexSnap?.prev_day_close ? (((sensexSnap.price || 0) - sensexSnap.prev_day_close) / sensexSnap.prev_day_close * 100) : null;
-  const vixIdx = globalIndices.find(i => i.symbol?.includes('VIX'));
-  const aiBias = intelligence?.insight?.market_bias;
-  const aiConf = intelligence?.insight?.confidence;
-  const netInst = intelligence?.fii_dii?.net_institutional;
 
   return (
     <div className="app-container">
-      {/* ── Header ─────────────────────────────────────────────── */}
       <header className="header">
-        <h1>TradeAI</h1>
+        <h1>TradeAI Console</h1>
         <div className="header-controls">
-          <div className="header-meta">
-            {lastUpdated && (
-              <span>
-                {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
-            )}
-            {systemStatus.cycle_count > 0 && (
-              <span style={{ marginLeft: 8 }}>
-                · Cycle #{systemStatus.cycle_count}
-              </span>
-            )}
-            {systemStatus.db_connected === false && (
-              <span
-                style={{ color: 'var(--accent-red)', marginLeft: 6, cursor: 'help' }}
-                title={systemStatus.db_error || 'Database unreachable'}
-              >· DB Down</span>
-            )}
-            {brokerStatus && !brokerStatus.authenticated && brokerStatus.configured && (
-              <span
-                style={{ color: 'var(--accent-yellow)', marginLeft: 6, cursor: 'pointer' }}
-                onClick={() => setTab('settings')}
-                title="Broker not authenticated — click to fix"
-              >· Broker Auth ✗</span>
-            )}
-            {brokerStatus && !brokerStatus.configured && (
-              <span
-                style={{ color: 'var(--accent-red)', marginLeft: 6, cursor: 'pointer' }}
-                onClick={() => setTab('settings')}
-                title="Broker not configured — click to set up"
-              >· Broker ✗</span>
-            )}
-          </div>
-
-          <button
-            onClick={() => {
-              if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission().then(p => setNotificationsEnabled(p === 'granted'));
-              } else {
-                setNotificationsEnabled(!notificationsEnabled);
-              }
-            }}
-            title={notificationsEnabled ? 'Browser notifications ON' : 'Browser notifications OFF'}
-            style={{
-              padding: '3px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
-              border: 'none', cursor: 'pointer', letterSpacing: 0.5,
-              background: notificationsEnabled ? 'rgba(16,185,129,0.15)' : 'rgba(107,114,128,0.15)',
-              color: notificationsEnabled ? '#10b981' : '#6b7280',
-            }}
-          >
-            {notificationsEnabled ? '🔔 ON' : '🔕 OFF'}
-          </button>
+          {lastUpdated && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              Updated {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
 
           <button
             onClick={handleModeToggle}
             style={{
-              padding: '3px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700,
-              border: 'none', cursor: 'pointer', letterSpacing: 0.5,
+              padding: '4px 12px',
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
               background: systemStatus.paper_trading ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
               color: systemStatus.paper_trading ? '#f59e0b' : '#ef4444',
             }}
           >
-            {systemStatus.paper_trading ? 'PAPER' : '● LIVE'}
+            {systemStatus.paper_trading ? 'PAPER' : 'LIVE'}
           </button>
-
-          {systemStatus.capital > 0 && (
-            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-              ₹{systemStatus.capital?.toLocaleString('en-IN')}
-            </span>
-          )}
 
           <span className={`status-badge ${isRunning ? 'running' : 'stopped'}`}>
             <span className="status-dot" />
@@ -261,388 +211,49 @@ function App() {
       </header>
 
       {error && (
-        <div className="card" style={{ borderColor: 'var(--accent-red)', margin: '12px 0', padding: 12 }}>
-          <span style={{ color: 'var(--accent-red)', fontSize: '0.85rem' }}>{error}</span>
+        <div className="card" style={{ marginTop: 12, borderLeft: '4px solid var(--accent-red)' }}>
+          <span style={{ color: 'var(--accent-red)', fontSize: 13 }}>{error}</span>
         </div>
       )}
 
-      {/* ── KPI Strip (Market-Focused) ────────────────────────── */}
-      <div className="kpi-strip">
-        <KPI label="NIFTY"
-          value={(niftySnap?.price || 0) > 0 ? (niftySnap.price).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
-          color={niftyChange != null ? (niftyChange >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-primary)'}
-          sub={niftyChange != null ? `${niftyChange >= 0 ? '+' : ''}${niftyChange.toFixed(2)}%` : ''} />
-        <KPI label="SENSEX"
-          value={(sensexSnap?.price || 0) > 0 ? (sensexSnap.price).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '—'}
-          color={sensexChange != null ? (sensexChange >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-primary)'}
-          sub={sensexChange != null ? `${sensexChange >= 0 ? '+' : ''}${sensexChange.toFixed(2)}%` : ''} />
-        <KPI label="Market Bias"
-          value={(aiBias || '—').toUpperCase()}
-          color={aiBias === 'bullish' ? 'var(--accent-green)' : aiBias === 'bearish' ? 'var(--accent-red)' : 'var(--accent-yellow)'}
-          sub={aiConf ? `${aiConf}% confidence` : ''} />
-        <KPI label="India VIX"
-          value={vixIdx?.last_price > 0 ? vixIdx.last_price.toFixed(2) : '—'}
-          color={vixIdx?.last_price > 20 ? 'var(--accent-red)' : vixIdx?.last_price > 15 ? 'var(--accent-yellow)' : 'var(--accent-green)'}
-          sub={vixIdx?.change_pct != null ? `${vixIdx.change_pct >= 0 ? '+' : ''}${vixIdx.change_pct.toFixed(2)}%` : ''} />
-        <KPI label="FII/DII Net"
-          value={netInst != null ? `${netInst >= 0 ? '+' : ''}${netInst.toFixed(0)} Cr` : '—'}
-          color={netInst > 0 ? 'var(--accent-green)' : netInst < 0 ? 'var(--accent-red)' : 'var(--text-muted)'}
-          sub={intelligence?.fii_dii ? `FII: ${(intelligence.fii_dii.fii_net || 0) >= 0 ? '+' : ''}${(intelligence.fii_dii.fii_net || 0).toFixed(0)} · DII: ${(intelligence.fii_dii.dii_net || 0) >= 0 ? '+' : ''}${(intelligence.fii_dii.dii_net || 0).toFixed(0)}` : ''} />
-        <KPI label="Active Trades" value={allActive.length}
-          color={allActive.length > 0 ? 'var(--accent-blue)' : 'var(--text-muted)'}
-          sub={allActive.length > 0 ? 'MOB Strategy' : ''} />
-      </div>
-
-      {/* ── Tab Navigation ─────────────────────────────────────── */}
       <nav className="tab-nav">
-        {[
-          ['scanners', 'Scanners'],
-          ['atm', 'ATM Strategy'],
-          ['positions', 'Positions'],
-          ['history', 'History'],
-          ['alerts', 'Alerts'],
-          ['settings', 'Settings'],
-        ].map(([key, label]) => (
-          <button
-            key={key}
-            className={`tab-btn ${tab === key ? 'active' : ''}`}
-            onClick={() => setTab(key)}
-          >
-            {label}
-            {key === 'alerts' && alerts && alerts.length > 0 && (
-              <span className="tab-badge">{alerts.length}</span>
-            )}
-          </button>
-        ))}
+        <NavLink to="/cockpit" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+          Cockpit
+        </NavLink>
+        <NavLink to="/positions" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+          Positions
+        </NavLink>
+        <NavLink to="/history" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+          History
+        </NavLink>
+        <NavLink to="/atm" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+          ATM Straddle
+        </NavLink>
+        <NavLink to="/settings/strategy" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+          Settings
+        </NavLink>
       </nav>
 
-      {tab === 'scanners' && (
-        <section className="section" style={{ marginTop: 4 }}>
-          <h2 className="section-title">Active Scanners</h2>
-          <ScannersPanel systemStatus={systemStatus} />
-          <div style={{ marginTop: 16 }}>
-            <h2 className="section-title">Live Alerts (Today)</h2>
-            <AlertsPanel alerts={alerts} compact />
-          </div>
-        </section>
-      )}
-
-      {tab === 'alerts' && (
-        <section className="section" style={{ marginTop: 4 }}>
-          <h2 className="section-title">All Alerts</h2>
-          <AlertsPanel alerts={alerts} />
-        </section>
-      )}
-
-      {tab === 'positions' && (
-        <PositionsPage
-          activeTrades={allActive}
-          todayTrades={todayTrades}
-          performance={performance}
+      <Routes>
+        <Route
+          path="/cockpit"
+          element={(
+            <CockpitPage
+              allSnapshots={allSnapshots}
+              globalIndices={globalIndices}
+              systemStatus={systemStatus}
+              intelligence={intelligence}
+              alerts={alerts}
+            />
+          )}
         />
-      )}
-
-      {tab === 'atm' && (
-        <ATMStrategyPage />
-      )}
-
-      {tab === 'history' && (
-        <HistoryPage />
-      )}
-
-      {tab === 'settings' && (
-        <SettingsTab />
-      )}
+        <Route path="/positions" element={<PositionsPage />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/atm" element={<ATMStrategyPage />} />
+        <Route path="/settings/*" element={<SettingsPage brokerStatus={brokerStatus} />} />
+        <Route path="*" element={<Navigate to="/cockpit" replace />} />
+      </Routes>
     </div>
-  );
-}
-
-/* ─── KPI Component ──────────────────────────────────────────────────── */
-function KPI({ label, value, color, sub }) {
-  return (
-    <div className="kpi-item">
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value" style={{ color }}>{value}</div>
-      {sub && <div className="kpi-sub">{sub}</div>}
-    </div>
-  );
-}
-
-/* ─── Scanner Status Card ─────────────────────────────────────────────── */
-function ScannerCard({ name, tag, scanner, color }) {
-  const statusText = scanner.in_trade ? '🔴 IN TRADE' :
-    scanner.signal_found ? '✅ Signal Found' :
-    scanner.day_tradeable ? '🔍 Scanning...' :
-    scanner.day_tradeable === false && scanner.active ? '⏸️ Day Skipped' : '⏳ Waiting';
-
-  return (
-    <div className="card" style={{ padding: 12, borderLeft: `3px solid ${color}` }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <div>
-          <span style={{ fontWeight: 700, fontSize: 13 }}>{name}</span>
-          <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--text-secondary)' }}>{tag}</span>
-        </div>
-        <span style={{
-          fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
-          background: scanner.in_trade ? 'rgba(239,68,68,0.15)' : scanner.signal_found ? 'rgba(16,185,129,0.15)' :
-            scanner.day_tradeable ? 'rgba(59,130,246,0.15)' : 'rgba(107,114,128,0.15)',
-          color: scanner.in_trade ? '#ef4444' : scanner.signal_found ? '#10b981' :
-            scanner.day_tradeable ? '#3b82f6' : '#6b7280',
-        }}>
-          {statusText}
-        </span>
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-        Week trade: {scanner.last_trade_week ? `W${scanner.last_trade_week}` : 'None yet'}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Dashboard Tab (Market-Focused) ─────────────────────────────────── */
-function DashboardTab({ allSnapshots, globalIndices, intelligence, alerts, systemStatus }) {
-  const { insight, fii_dii, breadth } = intelligence || {};
-  const keyLevels = insight?.key_levels || {};
-  const scanners = systemStatus?.scanners || {};
-
-  return (
-    <>
-      {/* Market Overview - Instrument Cards */}
-      <section className="section" style={{ marginTop: 4 }}>
-        <MarketOverview allSnapshots={allSnapshots} globalIndices={globalIndices} />
-      </section>
-
-      {/* Scanner Status Panel */}
-      {(scanners.config_p || scanners.move_det) && (
-        <section className="section" style={{ marginTop: 4 }}>
-          <div className="grid grid-2" style={{ gap: 12 }}>
-            {scanners.config_p && (
-              <ScannerCard name="CONFIG P" tag="detect_move" scanner={scanners.config_p} color="#8b5cf6" />
-            )}
-            {scanners.move_det && (
-              <ScannerCard name="MOVE-DET" tag="scan_all_moves" scanner={scanners.move_det} color="#f59e0b" />
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* Market Context + Alerts sidebar */}
-      <div className="dashboard-main">
-        <div>
-          {/* FII/DII, Breadth, Key Levels */}
-          <div className="grid grid-3" style={{ marginBottom: 16 }}>
-            {/* FII/DII */}
-            <div className="card" style={{ padding: 14 }}>
-              <div className="card-title" style={{ marginBottom: 8 }}>FII / DII Flow</div>
-              {fii_dii ? (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13 }}>FII Net</span>
-                    <span style={{ fontWeight: 600, color: fii_dii.fii_net >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                      {fii_dii.fii_net >= 0 ? '+' : ''}{fii_dii.fii_net?.toFixed(0)} Cr
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13 }}>DII Net</span>
-                    <span style={{ fontWeight: 600, color: fii_dii.dii_net >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                      {fii_dii.dii_net >= 0 ? '+' : ''}{fii_dii.dii_net?.toFixed(0)} Cr
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>Net</span>
-                    <span style={{ fontWeight: 700, color: fii_dii.net_institutional >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                      {fii_dii.net_institutional >= 0 ? '+' : ''}{fii_dii.net_institutional?.toFixed(0)} Cr
-                    </span>
-                  </div>
-                </>
-              ) : <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Data unavailable</span>}
-            </div>
-
-            {/* Market Breadth */}
-            <div className="card" style={{ padding: 14 }}>
-              <div className="card-title" style={{ marginBottom: 8 }}>Market Breadth</div>
-              {breadth ? (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13 }}>Advancing</span>
-                    <span style={{ fontWeight: 600, color: 'var(--accent-green)' }}>{breadth.total_advancing}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13 }}>Declining</span>
-                    <span style={{ fontWeight: 600, color: 'var(--accent-red)' }}>{breadth.total_declining}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>A/D Ratio</span>
-                    <span style={{ fontWeight: 700, color: breadth.advance_decline_ratio >= 1.0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                      {breadth.advance_decline_ratio?.toFixed(2)}
-                    </span>
-                  </div>
-                </>
-              ) : <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Data unavailable</span>}
-            </div>
-
-            {/* Key Levels */}
-            <div className="card" style={{ padding: 14 }}>
-              <div className="card-title" style={{ marginBottom: 8 }}>Key Levels</div>
-              {keyLevels.nifty_support || keyLevels.nifty_resistance ? (
-                <>
-                  {keyLevels.nifty_support && (
-                    <div style={{ marginBottom: 6 }}>
-                      <span style={{ fontSize: 11, color: 'var(--accent-green)', fontWeight: 600 }}>Support: </span>
-                      {keyLevels.nifty_support.map((lvl, i) => (
-                        <span key={i} style={{ padding: '1px 6px', background: 'rgba(16,185,129,0.12)', borderRadius: 4, fontSize: 12, fontWeight: 600, marginRight: 4 }}>
-                          {lvl}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {keyLevels.nifty_resistance && (
-                    <div>
-                      <span style={{ fontSize: 11, color: 'var(--accent-red)', fontWeight: 600 }}>Resistance: </span>
-                      {keyLevels.nifty_resistance.map((lvl, i) => (
-                        <span key={i} style={{ padding: '1px 6px', background: 'rgba(239,68,68,0.12)', borderRadius: 4, fontSize: 12, fontWeight: 600, marginRight: 4 }}>
-                          {lvl}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>No levels identified</span>}
-            </div>
-          </div>
-
-          {/* Sector Performance */}
-          {breadth?.sectors && breadth.sectors.length > 0 && (
-            <div className="card" style={{ marginBottom: 16, padding: 14 }}>
-              <div className="card-title" style={{ marginBottom: 8 }}>Sector Performance</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {breadth.sectors
-                  .sort((a, b) => b.change_pct - a.change_pct)
-                  .map((sector, i) => (
-                    <span key={i} style={{
-                      padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-                      background: sector.change_pct > 0.5 ? 'rgba(16,185,129,0.12)' : sector.change_pct < -0.5 ? 'rgba(239,68,68,0.12)' : 'rgba(107,114,128,0.12)',
-                      color: sector.change_pct > 0.5 ? 'var(--accent-green)' : sector.change_pct < -0.5 ? 'var(--accent-red)' : 'var(--text-secondary)',
-                    }}>
-                      {sector.name.replace('NIFTY ', '')}: {sector.change_pct > 0 ? '+' : ''}{sector.change_pct.toFixed(2)}%
-                    </span>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {/* AI Summary */}
-          {insight?.summary && (
-            <div className="card" style={{ borderLeft: '3px solid var(--accent-blue)', padding: '12px 16px' }}>
-              <div className="card-title" style={{ marginBottom: 6 }}>AI Market Summary</div>
-              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>{insight.summary}</p>
-              {insight?.trading_plan && (
-                <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(59,130,246,0.06)', borderRadius: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-blue)', textTransform: 'uppercase' }}>Trading Plan</span>
-                  <p style={{ margin: '4px 0 0', fontSize: 12, lineHeight: 1.5, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{insight.trading_plan}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right sidebar: Alerts */}
-        <div>
-          <h2 className="section-title" style={{ marginTop: 0 }}>Alerts</h2>
-          <AlertsPanel alerts={alerts} compact />
-        </div>
-      </div>
-    </>
-  );
-}
-
-/* ─── Trades Tab ─────────────────────────────────────────────────────── */
-function TradesTab({ allActive, allClosed, performance }) {
-  const p = performance || {};
-
-  return (
-    <>
-      {/* Performance Summary Bar */}
-      <div className="card" style={{ marginTop: 4, marginBottom: 16, padding: '12px 20px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
-          <div>
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Today P&L</span>
-            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: (p.total_pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              ₹{(p.total_pnl || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-            </div>
-          </div>
-          <div>
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Win Rate</span>
-            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: (p.win_rate || 0) >= 50 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              {(p.win_rate || 0).toFixed(1)}%
-            </div>
-          </div>
-          <div>
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Trades</span>
-            <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-              {p.total_trades || 0} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({p.winning_trades || 0}W / {p.losing_trades || 0}L)</span>
-            </div>
-          </div>
-          <div>
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Profit Factor</span>
-            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: (p.profit_factor || 0) >= 1 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              {(p.profit_factor || 0).toFixed(2)}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Active Trades */}
-      <section className="section">
-        <h2 className="section-title">Active Trades</h2>
-        <ActiveTrades trades={allActive} />
-      </section>
-
-      {/* Completed Trades */}
-      <section className="section">
-        <h2 className="section-title">Completed Trades</h2>
-        <CompletedTrades trades={allClosed} />
-      </section>
-    </>
-  );
-}
-
-/* ─── Settings Tab ───────────────────────────────────────────────────── */
-function SettingsTab() {
-  const [settingsView, setSettingsView] = useState('broker');
-
-  return (
-    <>
-      <section className="section" style={{ marginTop: 4 }}>
-        <div className="settings-subnav">
-          <button
-            className={`tab-btn ${settingsView === 'broker' ? 'active' : ''}`}
-            onClick={() => setSettingsView('broker')}
-          >
-            Broker
-          </button>
-          <button
-            className={`tab-btn ${settingsView === 'strategy' ? 'active' : ''}`}
-            onClick={() => setSettingsView('strategy')}
-          >
-            Strategy
-          </button>
-        </div>
-      </section>
-
-      {settingsView === 'broker' && (
-        <section className="section" style={{ marginTop: 10 }}>
-          <h2 className="section-title">Broker Connection</h2>
-          <BrokerSettings />
-        </section>
-      )}
-
-      {settingsView === 'strategy' && (
-        <section className="section" style={{ marginTop: 10 }}>
-          <StrategySettingsPanel />
-        </section>
-      )}
-    </>
   );
 }
 

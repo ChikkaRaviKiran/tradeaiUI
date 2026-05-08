@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { exitPositions, fetchPositions } from '../api';
+import { exitPositions, fetchPositions, rearmPositions } from '../api';
 
 const REFRESH_INTERVAL = 10000;
 
@@ -19,6 +19,7 @@ export default function PositionsPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState({});
   const [exiting, setExiting] = useState(false);
+  const [rearming, setRearming] = useState(false);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterAccount, setFilterAccount] = useState('');
 
@@ -109,6 +110,22 @@ export default function PositionsPage() {
         </button>
         <button className="btn btn-stop" disabled={exiting} onClick={handleExitSelected}>
           {exiting ? 'Exiting...' : 'Exit Selected'}
+        </button>
+        <button
+          className="btn"
+          disabled={rearming}
+          onClick={async () => {
+            if (!window.confirm('Allow strategies to place entries again today?')) return;
+            setRearming(true);
+            try {
+              await rearmPositions();
+            } catch {
+              // ignore
+            }
+            setRearming(false);
+          }}
+        >
+          {rearming ? 'Re-arming...' : 'Allow Re-entry Today'}
         </button>
       </div>
 
