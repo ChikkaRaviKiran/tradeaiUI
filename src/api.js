@@ -1,10 +1,11 @@
 import axios from 'axios';
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
+const API_TIMEOUT_MS = Number(process.env.REACT_APP_API_TIMEOUT_MS || 20000);
 
 const api = axios.create({
   baseURL: API_BASE,
-  timeout: 10000,
+  timeout: Number.isFinite(API_TIMEOUT_MS) ? API_TIMEOUT_MS : 20000,
 });
 
 export const fetchAllSnapshots = () => api.get('/api/market/snapshots');

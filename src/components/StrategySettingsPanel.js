@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   fetchAtlStraddleSettings,
   updateAtlStraddleSettings,
+  fetchMoveDetExecSettings,
+  updateMoveDetExecSettings,
+  fetchPdhPdlExecSettings,
+  updatePdhPdlExecSettings,
   fetchTradingAccount,
   placeNowAtm,
 } from '../api';
@@ -26,6 +30,16 @@ const DEFAULTS = {
   execution_account: 'Primary',
 };
 
+const EXEC_DEFAULTS = {
+  enabled: true,
+  live_execution: false,
+  lots_mode: 'manual',
+  manual_lots: 1,
+  max_funds: 150000,
+  buffer_pct: 5,
+  max_lots: 20,
+};
+
 function num(v, fallback) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -33,8 +47,12 @@ function num(v, fallback) {
 
 export default function StrategySettingsPanel() {
   const [form, setForm] = useState(DEFAULTS);
+  const [moveDet, setMoveDet] = useState(EXEC_DEFAULTS);
+  const [pdhPdl, setPdhPdl] = useState(EXEC_DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingMoveDet, setSavingMoveDet] = useState(false);
+  const [savingPdhPdl, setSavingPdhPdl] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [accountInfo, setAccountInfo] = useState({ active: 'angel', running: false });
@@ -47,6 +65,20 @@ export default function StrategySettingsPanel() {
       setForm((prev) => ({ ...prev, ...(res?.data || {}) }));
     } catch {
       setError('Failed to load ATM settings.');
+    }
+
+    try {
+      const md = await fetchMoveDetExecSettings();
+      setMoveDet((prev) => ({ ...prev, ...(md?.data || {}) }));
+    } catch {
+      // non-fatal
+    }
+
+    try {
+      const pdh = await fetchPdhPdlExecSettings();
+      setPdhPdl((prev) => ({ ...prev, ...(pdh?.data || {}) }));
+    } catch {
+      // non-fatal
     }
 
     try {
@@ -99,12 +131,236 @@ export default function StrategySettingsPanel() {
     setSaving(false);
   };
 
+  const saveMoveDet = async () => {
+    setSavingMoveDet(true);
+    setMessage('');
+    setError('');
+    try {
+      const payload = {
+        enabled: !!moveDet.enabled,
+        live_execution: !!moveDet.live_execution,
+        lots_mode: moveDet.lots_mode === 'auto' ? 'auto' : 'manual',
+        manual_lots: Math.max(1, num(moveDet.manual_lots, 1)),
+        max_lots: Math.max(1, num(moveDet.max_lots, 20)),
+        max_funds: Math.max(0, num(moveDet.max_funds, 150000)),
+        buffer_pct: Math.max(0, num(moveDet.buffer_pct, 5)),
+      };
+      const res = await updateMoveDetExecSettings(payload);
+      setMoveDet((prev) => ({ ...prev, ...(res?.data || payload) }));
+      setMessage('MoveDet settings saved.');
+    } catch {
+      setError('Failed to save MoveDet settings.');
+    }
+    setSavingMoveDet(false);
+  };
+
+  const savePdhPdl = async () => {
+    setSavingPdhPdl(true);
+    setMessage('');
+    setError('');
+    try {
+      const payload = {
+        enabled: !!pdhPdl.enabled,
+        live_execution: !!pdhPdl.live_execution,
+        lots_mode: pdhPdl.lots_mode === 'auto' ? 'auto' : 'manual',
+        manual_lots: Math.max(1, num(pdhPdl.manual_lots, 1)),
+        max_lots: Math.max(1, num(pdhPdl.max_lots, 20)),
+        max_funds: Math.max(0, num(pdhPdl.max_funds, 150000)),
+        buffer_pct: Math.max(0, num(pdhPdl.buffer_pct, 5)),
+      };
+      const res = await updatePdhPdlExecSettings(payload);
+      setPdhPdl((prev) => ({ ...prev, ...(res?.data || payload) }));
+      setMessage('PDH/PDL settings saved.');
+    } catch {
+      setError('Failed to save PDH/PDL settings.');
+    }
+    setSavingPdhPdl(false);
+  };
+
   if (loading) {
     return <div className="card" style={{ marginTop: 12 }}>Loading strategy settings...</div>;
   }
 
   return (
     <section style={{ marginTop: 12 }}>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card-title" style={{ marginBottom: 10 }}>Move Detection Settings</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+          Control execution mode and lots for MoveDet orders.
+        </div>
+
+        <div className="grid grid-4" style={{ gap: 10 }}>
+          <label className="atl-field">
+            <span>Enabled</span>
+            <select
+              value={moveDet.enabled ? 'true' : 'false'}
+              onChange={(e) => setMoveDet((s) => ({ ...s, enabled: e.target.value === 'true' }))}
+            >
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </label>
+
+          <label className="atl-field">
+            <span>Execution Mode</span>
+            <select
+              value={moveDet.live_execution ? 'live' : 'paper'}
+              onChange={(e) => setMoveDet((s) => ({ ...s, live_execution: e.target.value === 'live' }))}
+            >
+              <option value="paper">Paper Only</option>
+              <option value="live">Live Orders</option>
+            </select>
+          </label>
+
+          <label className="atl-field">
+            <span>Lots Mode</span>
+            <select
+              value={moveDet.lots_mode || 'manual'}
+              onChange={(e) => setMoveDet((s) => ({ ...s, lots_mode: e.target.value }))}
+            >
+              <option value="manual">Manual</option>
+              <option value="auto">Auto (by funds)</option>
+            </select>
+          </label>
+
+          <label className="atl-field">
+            <span>Manual Lots</span>
+            <input
+              type="number"
+              min="1"
+              value={moveDet.manual_lots}
+              disabled={moveDet.lots_mode === 'auto'}
+              onChange={(e) => setMoveDet((s) => ({ ...s, manual_lots: e.target.value }))}
+            />
+          </label>
+
+          <label className="atl-field">
+            <span>Max Lots</span>
+            <input
+              type="number"
+              min="1"
+              value={moveDet.max_lots}
+              onChange={(e) => setMoveDet((s) => ({ ...s, max_lots: e.target.value }))}
+            />
+          </label>
+
+          <label className="atl-field">
+            <span>Max Funds</span>
+            <input
+              type="number"
+              min="0"
+              value={moveDet.max_funds}
+              onChange={(e) => setMoveDet((s) => ({ ...s, max_funds: e.target.value }))}
+            />
+          </label>
+
+          <label className="atl-field">
+            <span>Buffer %</span>
+            <input
+              type="number"
+              min="0"
+              value={moveDet.buffer_pct}
+              onChange={(e) => setMoveDet((s) => ({ ...s, buffer_pct: e.target.value }))}
+            />
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+          <button className="btn btn-start" disabled={savingMoveDet} onClick={saveMoveDet}>
+            {savingMoveDet ? 'Saving...' : 'Save MoveDet'}
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card-title" style={{ marginBottom: 10 }}>PDH/PDL Settings</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+          Control execution mode and lots for PDH/PDL orders.
+        </div>
+
+        <div className="grid grid-4" style={{ gap: 10 }}>
+          <label className="atl-field">
+            <span>Enabled</span>
+            <select
+              value={pdhPdl.enabled ? 'true' : 'false'}
+              onChange={(e) => setPdhPdl((s) => ({ ...s, enabled: e.target.value === 'true' }))}
+            >
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </label>
+
+          <label className="atl-field">
+            <span>Execution Mode</span>
+            <select
+              value={pdhPdl.live_execution ? 'live' : 'paper'}
+              onChange={(e) => setPdhPdl((s) => ({ ...s, live_execution: e.target.value === 'live' }))}
+            >
+              <option value="paper">Paper Only</option>
+              <option value="live">Live Orders</option>
+            </select>
+          </label>
+
+          <label className="atl-field">
+            <span>Lots Mode</span>
+            <select
+              value={pdhPdl.lots_mode || 'manual'}
+              onChange={(e) => setPdhPdl((s) => ({ ...s, lots_mode: e.target.value }))}
+            >
+              <option value="manual">Manual</option>
+              <option value="auto">Auto (by funds)</option>
+            </select>
+          </label>
+
+          <label className="atl-field">
+            <span>Manual Lots</span>
+            <input
+              type="number"
+              min="1"
+              value={pdhPdl.manual_lots}
+              disabled={pdhPdl.lots_mode === 'auto'}
+              onChange={(e) => setPdhPdl((s) => ({ ...s, manual_lots: e.target.value }))}
+            />
+          </label>
+
+          <label className="atl-field">
+            <span>Max Lots</span>
+            <input
+              type="number"
+              min="1"
+              value={pdhPdl.max_lots}
+              onChange={(e) => setPdhPdl((s) => ({ ...s, max_lots: e.target.value }))}
+            />
+          </label>
+
+          <label className="atl-field">
+            <span>Max Funds</span>
+            <input
+              type="number"
+              min="0"
+              value={pdhPdl.max_funds}
+              onChange={(e) => setPdhPdl((s) => ({ ...s, max_funds: e.target.value }))}
+            />
+          </label>
+
+          <label className="atl-field">
+            <span>Buffer %</span>
+            <input
+              type="number"
+              min="0"
+              value={pdhPdl.buffer_pct}
+              onChange={(e) => setPdhPdl((s) => ({ ...s, buffer_pct: e.target.value }))}
+            />
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+          <button className="btn btn-start" disabled={savingPdhPdl} onClick={savePdhPdl}>
+            {savingPdhPdl ? 'Saving...' : 'Save PDH/PDL'}
+          </button>
+        </div>
+      </div>
+
       <div className="card">
         <div className="card-title" style={{ marginBottom: 10 }}>ATM Straddle Settings</div>
 

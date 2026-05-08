@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import {
   fetchAllSnapshots,
   fetchGlobalIndices,
@@ -97,6 +97,7 @@ function SettingsPage({ brokerStatus }) {
 }
 
 function App() {
+  const location = useLocation();
   const [allSnapshots, setAllSnapshots] = useState({});
   const [globalIndices, setGlobalIndices] = useState([]);
   const [systemStatus, setSystemStatus] = useState({ status: 'stopped', scanners: {} });
@@ -105,33 +106,59 @@ function App() {
   const [brokerStatus, setBrokerStatus] = useState(null);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
+  const isFetchingRef = useRef(false);
 
   const loadData = useCallback(async () => {
+    if (isFetchingRef.current) {
+      return;
+    }
+    isFetchingRef.current = true;
     try {
-      const results = await Promise.allSettled([
-        fetchAllSnapshots(),
-        fetchGlobalIndices(),
-        fetchSystemStatus(),
-        fetchIntelligence(),
-        fetchAlerts(20),
-        fetchBrokerStatus(),
-      ]);
+      const path = location.pathname || '/cockpit';
+      const isCockpit = path.startsWith('/cockpit') || path === '/';
+      const wantsBroker = path.startsWith('/settings/broker');
 
-      const val = (i) => (results[i].status === 'fulfilled' ? results[i].value.data : null);
+      const tasks = [fetchSystemStatus()];
+      if (isCockpit) {
+        tasks.push(fetchAllSnapshots(), fetchGlobalIndices(), fetchIntelligence(), fetchAlerts(20));
+      }
+      if (wantsBroker || isCockpit) {
+        tasks.push(fetchBrokerStatus());
+      }
 
-      if (val(0) !== null) setAllSnapshots(val(0) || {});
-      if (val(1) !== null) setGlobalIndices(val(1) || []);
-      if (val(2) !== null) setSystemStatus(val(2) || { status: 'stopped', scanners: {} });
-      if (val(3) !== null) setIntelligence(val(3));
-      if (val(4) !== null) setAlerts(val(4) || []);
-      if (val(5) !== null) setBrokerStatus(val(5));
+      const results = await Promise.allSettled(tasks);
+      let idx = 0;
+
+      const statusRes = results[idx++];
+      if (statusRes.status === 'fulfilled') {
+        setSystemStatus(statusRes.value.data || { status: 'stopped', scanners: {} });
+      }
+
+      if (isCockpit) {
+        const snapRes = results[idx++];
+        const giRes = results[idx++];
+        const intelRes = results[idx++];
+        const alertsRes = results[idx++];
+
+        if (snapRes?.status === 'fulfilled') setAllSnapshots(snapRes.value.data || {});
+        if (giRes?.status === 'fulfilled') setGlobalIndices(giRes.value.data || []);
+        if (intelRes?.status === 'fulfilled') setIntelligence(intelRes.value.data || null);
+        if (alertsRes?.status === 'fulfilled') setAlerts(alertsRes.value.data || []);
+      }
+
+      if (wantsBroker || isCockpit) {
+        const brokerRes = results[idx++];
+        if (brokerRes?.status === 'fulfilled') setBrokerStatus(brokerRes.value.data || null);
+      }
 
       setLastUpdated(new Date());
       setError('');
     } catch {
       setError('Backend is unreachable.');
+    } finally {
+      isFetchingRef.current = false;
     }
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     loadData();
@@ -173,7 +200,26 @@ function App() {
   return (
     <div className="app-container">
       <header className="header">
-        <h1>TradeAI Console</h1>
+        <div className="header-left">
+          <h1>TradeAI Console</h1>
+          <nav className="tab-nav top-nav">
+            <NavLink to="/cockpit" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+              Cockpit
+            </NavLink>
+            <NavLink to="/positions" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+              Positions
+            </NavLink>
+            <NavLink to="/history" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+              History
+            </NavLink>
+            <NavLink to="/atm" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+              ATM Straddle
+            </NavLink>
+            <NavLink to="/settings/strategy" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+              Settings
+            </NavLink>
+          </nav>
+        </div>
         <div className="header-controls">
           {lastUpdated && (
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -215,24 +261,6 @@ function App() {
           <span style={{ color: 'var(--accent-red)', fontSize: 13 }}>{error}</span>
         </div>
       )}
-
-      <nav className="tab-nav">
-        <NavLink to="/cockpit" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
-          Cockpit
-        </NavLink>
-        <NavLink to="/positions" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
-          Positions
-        </NavLink>
-        <NavLink to="/history" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
-          History
-        </NavLink>
-        <NavLink to="/atm" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
-          ATM Straddle
-        </NavLink>
-        <NavLink to="/settings/strategy" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
-          Settings
-        </NavLink>
-      </nav>
 
       <Routes>
         <Route

@@ -254,6 +254,41 @@ function BrokerSettings() {
     setDhanRefreshing(false);
   };
 
+  const handleDhanGuidedConnect = async () => {
+    setDhanResult(null);
+    try {
+      window.open('https://web.dhan.co', '_blank', 'noopener');
+    } catch {
+      // no-op
+    }
+
+    const token = window.prompt('Paste fresh Dhan Access Token from Dhan dashboard:');
+    if (!token || !token.trim()) return;
+
+    const payload = {
+      access_token: token.trim(),
+      client_id: dhanCreds.client_id?.trim() || '',
+    };
+
+    setDhanSaving(true);
+    setDhanResult(null);
+    try {
+      const res = await updateDhanCredentials(payload);
+      setDhanResult({
+        success: true,
+        message: `Saved: ${(res.data?.updated_fields || []).join(', ') || 'access token'}`,
+      });
+      setDhanCreds((s) => ({ ...s, access_token: '' }));
+      await loadStatus();
+    } catch (e) {
+      setDhanResult({
+        success: false,
+        error: e?.response?.data?.detail || 'Failed to save Dhan token',
+      });
+    }
+    setDhanSaving(false);
+  };
+
   // Detect successful Kite OAuth completion (callback redirects with
   // ?kite_auth=success or ?kite_auth_error=...) and refresh status.
   useEffect(() => {
@@ -494,6 +529,18 @@ function BrokerSettings() {
               {dhanRefreshing ? 'Refreshing…' : 'Refresh Scrip Master'}
             </button>
             <button
+              onClick={handleDhanGuidedConnect}
+              disabled={dhanSaving}
+              style={{
+                padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                border: 'none', cursor: 'pointer',
+                background: 'rgba(59,130,246,0.15)', color: 'var(--accent-blue)',
+                opacity: dhanSaving ? 0.5 : 1,
+              }}
+            >
+              {dhanSaving ? 'Saving…' : 'Connect Dhan'}
+            </button>
+            <button
               onClick={handleDhanTest}
               disabled={dhanTesting || !dhanStatus?.client_id_set || !dhanStatus?.access_token_set}
               style={{
@@ -599,8 +646,8 @@ function BrokerSettings() {
         )}
 
         <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          <strong>Daily flow:</strong> 1) Generate token in Dhan dashboard. 2) Click "Edit Credentials"
-          → paste token → "Save Credentials" (broker hot-reloads). 3) "Test Connection" to verify.
+          <strong>Daily flow:</strong> 1) Click "Connect Dhan" (opens Dhan + token paste prompt)
+          or use "Edit Credentials" manually. 2) Save token (broker hot-reloads). 3) "Test Connection" to verify.
           Use "Save & Activate Dhan" only the first time to switch <code>TRADING_ACCOUNT=dhan</code> (restart required).
         </div>
       </div>
