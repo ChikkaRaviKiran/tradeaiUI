@@ -162,19 +162,46 @@ export default function ATMStrategyPage() {
             </tr>
           </thead>
           <tbody>
-            {(runtime?.events || []).slice().reverse().map((e, i) => (
-              <tr key={`${e.time}-${i}`}>
-                <td>{e.time}</td>
-                <td>{(e.mode || 'paper').toUpperCase()}</td>
-                <td>{e.event}</td>
-                <td>{e.message}</td>
-              </tr>
-            ))}
-            {(!runtime?.events || runtime.events.length === 0) && (
-              <tr>
-                <td colSpan={4} style={{ color: 'var(--text-muted)' }}>No events yet for current trading day.</td>
-              </tr>
-            )}
+            {(() => {
+              // Show only meaningful lifecycle events: entries, exits, errors,
+              // and operator actions. Per-minute "skip" diagnostics are
+              // intentionally hidden to keep the timeline readable.
+              const SHOWN_EVENTS = new Set([
+                'entry',
+                'force_entry',
+                'force_entry_requested',
+                'straddle',
+                'stoploss',
+                'force_close',
+                'handoff',
+                'complete',
+                'order_error',
+                'halt',
+                'reset',
+                'rearm',
+                'hedge',
+              ]);
+              const filtered = (runtime?.events || []).filter(
+                (e) => SHOWN_EVENTS.has(e.event)
+              );
+              if (filtered.length === 0) {
+                return (
+                  <tr>
+                    <td colSpan={4} style={{ color: 'var(--text-muted)' }}>
+                      No entry/exit/error events yet for current trading day.
+                    </td>
+                  </tr>
+                );
+              }
+              return filtered.slice().reverse().map((e, i) => (
+                <tr key={`${e.time}-${i}`}>
+                  <td>{e.time}</td>
+                  <td>{(e.mode || 'paper').toUpperCase()}</td>
+                  <td>{e.event}</td>
+                  <td>{e.message}</td>
+                </tr>
+              ));
+            })()}
           </tbody>
         </table>
       </div>
