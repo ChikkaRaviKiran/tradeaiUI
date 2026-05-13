@@ -102,4 +102,23 @@ export const fetchBacktestJobs = () => api.get('/api/backtest/jobs');
 export const exportBacktestExcel = (jobId) =>
   api.get(`/api/backtest/export/${encodeURIComponent(jobId)}`, { responseType: 'blob', timeout: 60000 });
 
+// ── Pattern Engine APIs ──────────────────────────────────────────────────
+export const peHealth = () => api.get('/api/pattern-engine/health');
+export const pePatternList = () => api.get('/api/pattern-engine/patterns');
+export const pePatternDetail = (id) => api.get(`/api/pattern-engine/patterns/${encodeURIComponent(id)}`);
+export const peSetPatternStatus = (id, status) =>
+  api.post(`/api/pattern-engine/patterns/${encodeURIComponent(id)}/status`, { status });
+export const peSetPatternSize = (id, size_multiplier) =>
+  api.post(`/api/pattern-engine/patterns/${encodeURIComponent(id)}/size`, { size_multiplier });
+export const peLive = (symbol = 'NIFTY') =>
+  api.get(`/api/pattern-engine/live?symbol=${encodeURIComponent(symbol)}`);
+export const pePerformance = (days = 30) =>
+  api.get(`/api/pattern-engine/performance?days=${days}`);
+export const peProbes = (limit = 100) =>
+  api.get(`/api/pattern-engine/probes?limit=${limit}`);
+export const peRefreshStats = () => api.post('/api/pattern-engine/admin/refresh-stats');
+export const peSeedPatterns = () => api.post('/api/pattern-engine/admin/seed');
+export const peSchedulerStatus = () => api.get('/api/pattern-engine/scheduler/status');
+export const peSchedulerRunNow = () => api.post('/api/pattern-engine/scheduler/run-now');
+
 export default api;

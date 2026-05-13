@@ -19,6 +19,7 @@ import HistoryPage from './components/HistoryPage';
 import AlertsPanel from './components/AlertsPanel';
 import BrokerSettings from './components/BrokerSettings';
 import StrategySettingsPanel from './components/StrategySettingsPanel';
+import PatternEnginePage from './components/pattern_engine/PatternEnginePage';
 
 const REFRESH_INTERVAL = 12000;
 
@@ -215,6 +216,9 @@ function App() {
             <NavLink to="/atm" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
               ATM Straddle
             </NavLink>
+            <NavLink to="/patterns" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+              Patterns
+            </NavLink>
             <NavLink to="/settings/strategy" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
               Settings
             </NavLink>
@@ -278,6 +282,7 @@ function App() {
         <Route path="/positions" element={<PositionsPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/atm" element={<ATMStrategyPage />} />
+        <Route path="/patterns" element={<PatternEnginePage />} />
         <Route path="/settings/*" element={<SettingsPage brokerStatus={brokerStatus} />} />
         <Route path="*" element={<Navigate to="/cockpit" replace />} />
       </Routes>
