@@ -120,5 +120,13 @@ export const peRefreshStats = () => api.post('/api/pattern-engine/admin/refresh-
 export const peSeedPatterns = () => api.post('/api/pattern-engine/admin/seed');
 export const peSchedulerStatus = () => api.get('/api/pattern-engine/scheduler/status');
 export const peSchedulerRunNow = () => api.post('/api/pattern-engine/scheduler/run-now');
+export const peSetPatternTrigger = (id, trigger_json, lock = true) =>
+  api.post(`/api/pattern-engine/patterns/${encodeURIComponent(id)}/trigger`, { trigger_json, lock });
+export const peSetPatternExitRule = (id, exit_rule_json, lock = true) =>
+  api.post(`/api/pattern-engine/patterns/${encodeURIComponent(id)}/exit-rule`, { exit_rule_json, lock });
+export const peSetPatternNotes = (id, notes) =>
+  api.post(`/api/pattern-engine/patterns/${encodeURIComponent(id)}/notes`, { notes });
+export const peRebackfillPattern = (id, days = 540, reset = true) =>
+  api.post(`/api/pattern-engine/patterns/${encodeURIComponent(id)}/rebackfill`, { days, reset });
 
 export default api;

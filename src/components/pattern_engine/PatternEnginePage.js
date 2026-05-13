@@ -10,6 +10,7 @@ import {
   pePatternDetail, pePatternList, pePerformance, peProbes, peHealth, peLive,
   peSetPatternStatus, peSetPatternSize, peRefreshStats, peSeedPatterns,
   peSchedulerStatus, peSchedulerRunNow,
+  peSetPatternTrigger, peSetPatternExitRule, peRebackfillPattern,
 } from '../../api';
 
 const TABS = ['Live', 'Library', 'Performance', 'Probes', 'Health'];
@@ -399,23 +400,139 @@ function DetailModal({ patternId, onClose }) {
               </table>
             </div>
 
-            <div className="grid grid-2" style={{ marginTop: 16 }}>
-              <div className="card" style={{ padding: 10 }}>
-                <h4 style={{ marginTop: 0 }}>Trigger</h4>
-                <pre style={{ fontSize: 11, whiteSpace: 'pre-wrap' }}>
-                  {JSON.stringify(d.pattern.trigger, null, 2)}
-                </pre>
-              </div>
-              <div className="card" style={{ padding: 10 }}>
-                <h4 style={{ marginTop: 0 }}>Exit Rule</h4>
-                <pre style={{ fontSize: 11, whiteSpace: 'pre-wrap' }}>
-                  {JSON.stringify(d.pattern.exit_rule, null, 2)}
-                </pre>
-              </div>
+            <div style={{ marginTop: 16 }}>
+              <PatternEditor pattern={d.pattern} onSaved={async () => {
+                const r = await pePatternDetail(patternId); setD(r.data);
+              }} />
             </div>
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Inline JSON editor for trigger + exit + rebackfill
+// ───────────────────────────────────────────────────────────────────────
+function PatternEditor({ pattern, onSaved }) {
+  const [trigText, setTrigText] = useState(JSON.stringify(pattern.trigger || {}, null, 2));
+  const [exitText, setExitText] = useState(JSON.stringify(pattern.exit_rule || {}, null, 2));
+  const [days, setDays] = useState(540);
+  const [busy, setBusy] = useState(null);
+  const [msg, setMsg] = useState(null);
+
+  useEffect(() => {
+    setTrigText(JSON.stringify(pattern.trigger || {}, null, 2));
+    setExitText(JSON.stringify(pattern.exit_rule || {}, null, 2));
+  }, [pattern.pattern_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isLocked = (pattern.notes || '').includes('[locked]');
+
+  const saveTrigger = async () => {
+    let parsed;
+    try { parsed = JSON.parse(trigText); }
+    catch (e) { setMsg({ kind: 'err', text: `Trigger JSON invalid: ${e.message}` }); return; }
+    setBusy('trig'); setMsg(null);
+    try {
+      await peSetPatternTrigger(pattern.pattern_id, parsed, true);
+      setMsg({ kind: 'ok', text: 'Trigger saved (pattern locked from auto-refresh)' });
+      await onSaved();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e?.response?.data?.detail || e.message });
+    } finally { setBusy(null); }
+  };
+
+  const saveExit = async () => {
+    let parsed;
+    try { parsed = JSON.parse(exitText); }
+    catch (e) { setMsg({ kind: 'err', text: `Exit JSON invalid: ${e.message}` }); return; }
+    setBusy('exit'); setMsg(null);
+    try {
+      await peSetPatternExitRule(pattern.pattern_id, parsed, true);
+      setMsg({ kind: 'ok', text: 'Exit rule saved (pattern locked)' });
+      await onSaved();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e?.response?.data?.detail || e.message });
+    } finally { setBusy(null); }
+  };
+
+  const rebackfill = async () => {
+    if (!window.confirm(`Re-backfill ${pattern.pattern_id} for last ${days} days?\nThis wipes existing occurrences and recomputes using the saved trigger/exit JSON.`)) return;
+    setBusy('rb'); setMsg({ kind: 'info', text: 'Re-backfill running… can take a minute or two.' });
+    try {
+      const r = await peRebackfillPattern(pattern.pattern_id, days, true);
+      setMsg({ kind: 'ok', text: `Done: ${r.data.totals.occurrences} new occurrences across ${r.data.totals.days} days. Stats refreshed.` });
+      await onSaved();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e?.response?.data?.detail || e.message });
+    } finally { setBusy(null); }
+  };
+
+  return (
+    <div className="card" style={{ padding: 12, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <h3 style={{ margin: 0 }}>Tweak Pattern (UI editor)</h3>
+        {isLocked && <Pill color="#f59e0b">LOCKED — won't be auto-refreshed on restart</Pill>}
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 0 }}>
+        Trigger DSL: <code>{`{"all":[{"f":"<field>","op":"<op>","v":<val>|"v_field":"<other_field>"}]}`}</code>.
+        Ops: eq, ne, gt, gte, lt, lte, between, in, not_in, abs_lt, abs_gt, is_null, not_null. Use <code>any</code> for OR.
+      </p>
+
+      <div className="grid grid-2" style={{ gap: 12 }}>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600 }}>Trigger JSON</label>
+          <textarea
+            value={trigText}
+            onChange={(e) => setTrigText(e.target.value)}
+            rows={14}
+            style={{ width: '100%', fontFamily: 'monospace', fontSize: 12, padding: 8 }}
+          />
+          <button className="btn-mini" disabled={busy === 'trig'} onClick={saveTrigger}>
+            {busy === 'trig' ? 'Saving…' : 'Save Trigger'}
+          </button>
+        </div>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600 }}>Exit Rule JSON</label>
+          <textarea
+            value={exitText}
+            onChange={(e) => setExitText(e.target.value)}
+            rows={14}
+            style={{ width: '100%', fontFamily: 'monospace', fontSize: 12, padding: 8 }}
+          />
+          <button className="btn-mini" disabled={busy === 'exit'} onClick={saveExit}>
+            {busy === 'exit' ? 'Saving…' : 'Save Exit Rule'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <label style={{ fontSize: 12 }}>Re-backfill last
+          <input type="number" min={30} max={2000} value={days}
+            onChange={(e) => setDays(parseInt(e.target.value) || 540)}
+            style={{ width: 70, marginLeft: 6, marginRight: 6 }} />
+          days
+        </label>
+        <button className="btn-mini" disabled={busy === 'rb'} onClick={rebackfill}
+          style={{ background: '#3b82f6', color: '#fff' }}>
+          {busy === 'rb' ? 'Re-backfilling…' : 'Re-backfill This Pattern'}
+        </button>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          Wipes existing occurrences for this pattern and recomputes with saved JSON, then refreshes stats.
+        </span>
+      </div>
+
+      {msg && (
+        <div style={{
+          marginTop: 10, padding: 8, borderRadius: 4, fontSize: 12,
+          background: msg.kind === 'ok' ? 'rgba(16,185,129,0.15)'
+            : msg.kind === 'err' ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.15)',
+          color: msg.kind === 'ok' ? '#10b981' : msg.kind === 'err' ? '#ef4444' : '#3b82f6',
+        }}>
+          {msg.text}
+        </div>
+      )}
     </div>
   );
 }
