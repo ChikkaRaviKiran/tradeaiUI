@@ -425,7 +425,11 @@ function PatternEditor({ pattern, onSaved }) {
   useEffect(() => {
     setTrigText(JSON.stringify(pattern.trigger || {}, null, 2));
     setExitText(JSON.stringify(pattern.exit_rule || {}, null, 2));
-  }, [pattern.pattern_id]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Re-sync local edit buffers only when the user switches to a
+    // different pattern; deliberately ignore changes to pattern.trigger /
+    // pattern.exit_rule so in-progress edits aren't clobbered by parent
+    // re-renders.
+  }, [pattern.pattern_id]);
 
   const isLocked = (pattern.notes || '').includes('[locked]');
 
