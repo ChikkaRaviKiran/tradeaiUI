@@ -88,6 +88,8 @@ export const updateAtlStraddleSettings = (payload) => api.put('/api/strategy-set
 // MoveDet & PDH/PDL execution settings (lots mode + funds)
 export const fetchMoveDetExecSettings = () => api.get('/api/strategy-settings/move-det');
 export const updateMoveDetExecSettings = (payload) => api.put('/api/strategy-settings/move-det', payload);
+export const fetchMoveDetBullExecSettings = () => api.get('/api/strategy-settings/move-det-bull');
+export const updateMoveDetBullExecSettings = (payload) => api.put('/api/strategy-settings/move-det-bull', payload);
 export const fetchPdhPdlExecSettings = () => api.get('/api/strategy-settings/pdh-pdl');
 export const updatePdhPdlExecSettings = (payload) => api.put('/api/strategy-settings/pdh-pdl', payload);
 

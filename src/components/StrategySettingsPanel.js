@@ -4,6 +4,8 @@ import {
   updateAtlStraddleSettings,
   fetchMoveDetExecSettings,
   updateMoveDetExecSettings,
+  fetchMoveDetBullExecSettings,
+  updateMoveDetBullExecSettings,
   fetchPdhPdlExecSettings,
   updatePdhPdlExecSettings,
   fetchTradingAccount,
@@ -47,10 +49,12 @@ function num(v, fallback) {
 export default function StrategySettingsPanel() {
   const [form, setForm] = useState(DEFAULTS);
   const [moveDet, setMoveDet] = useState(EXEC_DEFAULTS);
+  const [moveDetBull, setMoveDetBull] = useState(EXEC_DEFAULTS);
   const [pdhPdl, setPdhPdl] = useState(EXEC_DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingMoveDet, setSavingMoveDet] = useState(false);
+  const [savingMoveDetBull, setSavingMoveDetBull] = useState(false);
   const [savingPdhPdl, setSavingPdhPdl] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -69,6 +73,13 @@ export default function StrategySettingsPanel() {
     try {
       const md = await fetchMoveDetExecSettings();
       setMoveDet((prev) => ({ ...prev, ...(md?.data || {}) }));
+    } catch {
+      // non-fatal
+    }
+
+    try {
+      const mdb = await fetchMoveDetBullExecSettings();
+      setMoveDetBull((prev) => ({ ...prev, ...(mdb?.data || {}) }));
     } catch {
       // non-fatal
     }
@@ -153,6 +164,29 @@ export default function StrategySettingsPanel() {
     setSavingMoveDet(false);
   };
 
+  const saveMoveDetBull = async () => {
+    setSavingMoveDetBull(true);
+    setMessage('');
+    setError('');
+    try {
+      const payload = {
+        live_execution: !!moveDetBull.live_execution,
+        lots_mode: 'manual',
+        manual_lots: Math.max(1, num(moveDetBull.manual_lots, 1)),
+        max_lots: Math.max(1, num(moveDetBull.manual_lots, 1)),
+        max_funds: 0,
+        buffer_pct: 0,
+        enabled: !!moveDetBull.enabled,
+      };
+      const res = await updateMoveDetBullExecSettings(payload);
+      setMoveDetBull((prev) => ({ ...prev, ...(res?.data || payload) }));
+      setMessage('MoveDet Bullish settings saved.');
+    } catch {
+      setError('Failed to save MoveDet Bullish settings.');
+    }
+    setSavingMoveDetBull(false);
+  };
+
   const savePdhPdl = async () => {
     setSavingPdhPdl(true);
     setMessage('');
@@ -214,6 +248,55 @@ export default function StrategySettingsPanel() {
         <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
           <button className="btn btn-start" disabled={savingMoveDet} onClick={saveMoveDet}>
             {savingMoveDet ? 'Saving...' : 'Save MoveDet'}
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card-title" style={{ marginBottom: 10 }}>Move Detection Bullish Settings (CONSERVATIVE)</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+          Bullish CE scanner with the locked CONSERVATIVE filter. When it
+          fires it has top priority &mdash; any open MoveDet, PDH/PDL or ATM
+          position is force-closed before entry.
+        </div>
+
+        <div className="grid grid-4" style={{ gap: 10 }}>
+          <label className="atl-field">
+            <span>Enabled</span>
+            <select
+              value={moveDetBull.enabled ? 'true' : 'false'}
+              onChange={(e) => setMoveDetBull((s) => ({ ...s, enabled: e.target.value === 'true' }))}
+            >
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </label>
+
+          <label className="atl-field">
+            <span>Execution Mode</span>
+            <select
+              value={moveDetBull.live_execution ? 'live' : 'paper'}
+              onChange={(e) => setMoveDetBull((s) => ({ ...s, live_execution: e.target.value === 'live' }))}
+            >
+              <option value="paper">Paper Only</option>
+              <option value="live">Live Orders</option>
+            </select>
+          </label>
+
+          <label className="atl-field">
+            <span>No. of Lots</span>
+            <input
+              type="number"
+              min="1"
+              value={moveDetBull.manual_lots}
+              onChange={(e) => setMoveDetBull((s) => ({ ...s, manual_lots: e.target.value }))}
+            />
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+          <button className="btn btn-start" disabled={savingMoveDetBull} onClick={saveMoveDetBull}>
+            {savingMoveDetBull ? 'Saving...' : 'Save MoveDet Bullish'}
           </button>
         </div>
       </div>

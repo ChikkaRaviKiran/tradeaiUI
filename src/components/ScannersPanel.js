@@ -10,9 +10,15 @@ function ScannersPanel({ systemStatus }) {
   const cards = [
     {
       key: 'move_det',
-      title: 'Move-Det',
-      subtitle: 'Momentum continuation scanner',
+      title: 'Move-Det (Bearish)',
+      subtitle: 'Bearish momentum continuation scanner',
       data: scanners.move_det,
+    },
+    {
+      key: 'move_det_bull',
+      title: 'Move-Det (Bullish)',
+      subtitle: 'Bullish CONSERVATIVE scanner (priority)',
+      data: scanners.move_det_bull,
     },
     {
       key: 'pdh_pdl',
