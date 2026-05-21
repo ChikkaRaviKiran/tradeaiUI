@@ -21,6 +21,7 @@ const DEFAULTS = {
   lots: 1,
   strike_interval: 50,
   rolling_points: 300,
+  adjustment_points: 1,
   sl_type: 'premium_pct',
   sl_lower: 0,
   sl_upper: 0,
@@ -122,6 +123,7 @@ export default function StrategySettingsPanel() {
         lots: Math.max(1, num(form.lots, 1)),
         strike_interval: Math.max(1, num(form.strike_interval, 50)),
         rolling_points: Math.max(1, num(form.rolling_points, 300)),
+        adjustment_points: Math.max(0, num(form.adjustment_points, 1)),
         sl_lower: Math.max(0, num(form.sl_lower, 0)),
         sl_upper: Math.max(0, num(form.sl_upper, 0)),
         first_straddle_sl_pct: Math.max(1, num(form.first_straddle_sl_pct, 100)),
@@ -403,7 +405,7 @@ export default function StrategySettingsPanel() {
 
           <label className="atl-field">
             <span>Adjustment Points</span>
-            <input type="number" min="1" value={form.rolling_points} onChange={(e) => setForm((s) => ({ ...s, rolling_points: e.target.value }))} />
+            <input type="number" min="0" value={form.adjustment_points} onChange={(e) => setForm((s) => ({ ...s, adjustment_points: e.target.value }))} />
           </label>
 
           <label className="atl-field">
