@@ -14,6 +14,7 @@ import {
   updateDhanCredentials,
   refreshDhanInstruments,
 } from '../api';
+import KillSwitchPanel from './KillSwitchPanel';
 
 const STATUS_POLL_INTERVAL = 30000; // 30s
 
@@ -311,6 +312,9 @@ function BrokerSettings() {
 
   return (
     <div>
+      {/* Account-level daily-loss kill switch (Dhan) */}
+      <KillSwitchPanel />
+
       {/* Trading Account Selector (Angel vs Kite) */}
       <div className="card" style={{ padding: 20, marginBottom: 16 }}>
         <div className="card-title" style={{ marginBottom: 6 }}>Trading Account</div>
