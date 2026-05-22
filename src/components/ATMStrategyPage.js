@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { fetchAtmRuntime, forceCloseAtm, resetAtm } from '../api';
+import StraddleScheduleCard from './StraddleScheduleCard';
 
 const REFRESH_MS = 5000;
 
@@ -69,6 +70,8 @@ export default function ATMStrategyPage() {
   return (
     <section className="section" style={{ marginTop: 4 }}>
       <h2 className="section-title">ATM Strategy</h2>
+
+      <StraddleScheduleCard />
 
       {runtime?.halted && (
         <div className="card" style={{ marginBottom: 12, borderLeft: '4px solid #f87171', background: 'rgba(248,113,113,0.08)' }}>
