@@ -20,6 +20,9 @@ const DEFAULTS = {
   exit_time: '15:15',
   lots: 1,
   strike_interval: 50,
+  strike_mode: 'ATM',
+  otm_strikes: 0,
+  static_legs: false,
   rolling_points: 300,
   adjustment_points: 1,
   sl_type: 'premium_pct',
@@ -115,13 +118,18 @@ export default function StrategySettingsPanel() {
     setMessage('');
     setError('');
     try {
+      const strikeMode = (form.strike_mode || 'ATM').toUpperCase();
+      const otmSteps = Math.max(0, num(form.otm_strikes, 0));
+      const strikeInterval = Math.max(1, num(form.strike_interval, 50));
       const payload = {
         ...form,
         strategy_type: 'ATM_STRADDLE',
-        strike_mode: 'ATM',
-        offset_points: 0,
+        strike_mode: strikeMode,
+        otm_strikes: strikeMode === 'STRANGLE' ? otmSteps : 0,
+        offset_points: strikeMode === 'STRANGLE' ? otmSteps * strikeInterval : 0,
+        static_legs: !!form.static_legs,
         lots: Math.max(1, num(form.lots, 1)),
-        strike_interval: Math.max(1, num(form.strike_interval, 50)),
+        strike_interval: strikeInterval,
         rolling_points: Math.max(1, num(form.rolling_points, 300)),
         adjustment_points: Math.max(0, num(form.adjustment_points, 1)),
         sl_lower: Math.max(0, num(form.sl_lower, 0)),
@@ -401,6 +409,38 @@ export default function StrategySettingsPanel() {
           <label className="atl-field">
             <span>Strike Interval</span>
             <input type="number" min="1" value={form.strike_interval} onChange={(e) => setForm((s) => ({ ...s, strike_interval: e.target.value }))} />
+          </label>
+
+          <label className="atl-field">
+            <span>Strike Mode</span>
+            <select value={form.strike_mode || 'ATM'} onChange={(e) => setForm((s) => ({ ...s, strike_mode: e.target.value }))}>
+              <option value="ATM">ATM Straddle</option>
+              <option value="STRANGLE">OTM Strangle</option>
+            </select>
+          </label>
+
+          {String(form.strike_mode).toUpperCase() === 'STRANGLE' && (
+            <label className="atl-field">
+              <span>OTM Strikes (1=+1 step, 2=+2 step…)</span>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={form.otm_strikes ?? 1}
+                onChange={(e) => setForm((s) => ({ ...s, otm_strikes: e.target.value }))}
+              />
+            </label>
+          )}
+
+          <label className="atl-field">
+            <span>Static Legs (no rolling/adjust)</span>
+            <select
+              value={form.static_legs ? 'true' : 'false'}
+              onChange={(e) => setForm((s) => ({ ...s, static_legs: e.target.value === 'true' }))}
+            >
+              <option value="true">Yes — hold till exit (matches backtest)</option>
+              <option value="false">No — allow roll/convert/adjust</option>
+            </select>
           </label>
 
           <label className="atl-field">
