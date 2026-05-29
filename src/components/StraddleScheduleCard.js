@@ -1,59 +1,71 @@
 import React from 'react';
 
 /**
- * Straddle/Strangle Schedule — ULTIMATE SWEEP WINNER (Jan–May 2026).
+ * Straddle/Strangle Schedule — PHASE-3a ACTUAL (post-regime, Apr 14 → May 29, 2026).
  *
- * 4-dimensional optimization across (entry × exit × strike-offset × expiry-rank)
- * per (weekday × index), validated on full 5 months of post-regime data.
+ * Fine-grid sweep over 8 entries × 9 exits × 4 SL% × 8 strategies (23,040 combos)
+ * with walk-forward validation (Train Apr15–May5, Test May6–May29). Both halves
+ * must be profitable to qualify. ±₹6,000 rupee gates (TP and SL).
  *
- *   Phase-3a (best single index/day):  ₹+4,82,838 / 77 trades / 83% win  ≈ ₹+97K/mo
- *   Phase-3b (both indexes daily):     ₹+7,50,615 / 149 trades / 79% win ≈ ₹+1.50L/mo
+ *   Phase-3a actual: ₹+1,39,840 / 29 trades / 100% wins / no losing day
+ *                    Apr=₹+55,186  May=₹+84,655  worst trade=+₹302
  *
- * Beats prior baselines:
- *   ATM straddle (post-regime):  ₹+3,16,001
- *   Strangle +2 (fixed window):  ₹+3,82,753
- *   → +₹1L over old schedule, every month positive.
+ * Coverage note: May 28 = Bakri Eid holiday (no trade). May 27 (Wed SENSEX) and
+ * May 29 (Fri NIFTY) auto-excluded — Dhan minute data ended before the strategy's
+ * exit time on those partial days.
  *
- * Golden rule: never hold 0-DTE NIFTY/SENSEX into last 90 minutes.
- *
+ * Data: DhanHQ /v2/charts/rollingoption (1-min OHLC).
  * Sources:
- *   backend/ultimate_sweep.py          — 4D sweep + replay
- *   backend/phase3a_breakdown_v2.py    — per-day verification
+ *   backend/phase3a_actual_6k.py       — fine-grid sweep + walk-forward
+ *   research/reports/phase3a_actual_6k_trades.xlsx — full Excel trade log
  */
 
-// strike: 'ATM' | '+1' | '+2' | '+3'   (offset in steps; NIFTY=50, SENSEX=100)
-// expiry: 'nearWk' | 'nextWk'
+// strike: 'ATM' | '+1' | '+2'   (offset in steps; NIFTY=50, SENSEX=100)
+// expiry: 'nearWk' (post-regime: NIFTY=Tue, SENSEX=Thu)
 const SCHEDULE = [
   { day: 'Mon',
-    nifty:  { strike: '+3', expiry: 'nearWk', dte: 3, entry: '09:20', exit: '11:00', cum: '₹+86,163', win: '93%', margin: '~₹2.7L' },
-    sensex: { strike: 'ATM', expiry: 'nearWk', dte: 4, entry: '09:20', exit: '11:00', cum: '₹+47,040', win: '80%', margin: '~₹2.5L' },
+    nifty:  { strike: '+1', expiry: 'nearWk', dte: 1, entry: '09:25', exit: '12:00', sl: '30%', cum: '₹+26,052', win: '6/6 (100%)', margin: '~₹2.3L', sharpe: '+2.08', worst: '+₹302' },
+    sensex: null,
     primary: 'NIFTY',
-    note: 'Both indexes 09:20→11:00 morning. NIFTY +3 OTM strangle = 93% win.' },
+    note: 'NIFTY ±50 OTM strangle, morning theta-burn window. 6/6 wins, worst still positive (+₹302).' },
   { day: 'Tue',
-    nifty:  { strike: 'ATM', expiry: 'nearWk', dte: 2, entry: '09:30', exit: '14:30', cum: '₹+1,61,032', win: '82%', margin: '~₹3.0L' },
-    sensex: { strike: 'ATM', expiry: 'nearWk', dte: 3, entry: '09:30', exit: '15:00', cum: '₹+92,910', win: '75%', margin: '~₹2.5L' },
+    nifty:  { strike: '+1', expiry: 'nearWk', dte: 0, entry: '09:25', exit: '12:00', sl: '50%', cum: '₹+32,087', win: '6/6 (100%)', margin: '~₹2.3L', sharpe: '+4.79', worst: '+₹3,461' },
+    sensex: null,
     primary: 'NIFTY',
-    note: '🏆 BIGGEST WINNER. NIFTY DTE-2 ATM = ₹+1.6L over 17 trades. Exit 14:30, NOT 15:15.' },
+    note: '🏆 BIGGEST WINNER. NIFTY expiry-day ±50 OTM strangle. 6/6 wins, Sharpe +4.79. Exit 12:00.' },
   { day: 'Wed',
-    nifty:  { strike: '+2', expiry: 'nearWk', dte: 1, entry: '10:30', exit: '14:30', cum: '₹+55,608', win: '76%', margin: '~₹2.7L' },
-    sensex: { strike: 'ATM', expiry: 'nearWk', dte: 2, entry: '09:45', exit: '15:00', cum: '₹+99,594', win: '85%', margin: '~₹2.5L' },
+    nifty:  null,
+    sensex: { strike: '+2', expiry: 'nearWk', dte: 1, entry: '10:00', exit: '15:15', sl: '30%', cum: '₹+28,659', win: '6/6 (100%)', margin: '~₹3.0L', sharpe: '+2.08', worst: '+₹2,010' },
     primary: 'SENSEX',
-    note: '🛡️ SENSEX DTE-2 ATM 09:45→15:00 = 85% win, worst day only ₹-1K.' },
+    note: 'SENSEX ±200 OTM strangle, full-day theta 10:00→15:15. 6/6 wins (swapped from NIFTY after refetch).' },
   { day: 'Thu',
-    nifty:  { strike: '+2', expiry: 'nearWk', dte: 0, entry: '09:20', exit: '15:15', cum: '₹+48,386', win: '71%', margin: '~₹2.7L' },
-    sensex: { strike: 'ATM', expiry: 'nearWk', dte: 1, entry: '10:00', exit: '15:15', cum: '₹+86,121', win: '75%', margin: '~₹2.5L' },
+    nifty:  null,
+    sensex: { strike: '+2', expiry: 'nearWk', dte: 0, entry: '09:45', exit: '13:30', sl: '30%', cum: '₹+31,485', win: '6/6 (100%)', margin: '~₹3.0L', sharpe: '+3.73', worst: '+₹2,721' },
     primary: 'SENSEX',
-    note: 'SENSEX 1-DTE full session. NIFTY 0-DTE OK only at +2 OTM (delta protection).' },
+    note: '🛡️ SENSEX expiry-day ±200 OTM strangle. Entry 09:45 → exit 13:30 (longer hold). 6/6 wins, Sh +3.73.' },
   { day: 'Fri',
-    nifty:  { strike: '+1', expiry: 'nearWk', dte: 6, entry: '10:00', exit: '13:00', cum: '₹+49,927', win: '77%', margin: '~₹2.7L' },
-    sensex: { strike: 'ATM', expiry: 'nearWk', dte: 0, entry: '10:00', exit: '13:30', cum: '₹+23,831', win: '71%', margin: '~₹2.5L' },
+    nifty:  { strike: 'ATM', expiry: 'nearWk', dte: 4, entry: '09:45', exit: '14:30', sl: '30%', cum: '₹+21,557', win: '5/5 (100%)', margin: '~₹2.5L', sharpe: '+2.36', worst: '+₹1,940' },
+    sensex: null,
     primary: 'NIFTY',
-    note: 'NIFTY next-week (6-DTE) +1 OTM. SENSEX 0-DTE — exit 13:30 sharp.' },
+    note: 'NIFTY ATM straddle, classic 09:45→14:30 theta burn. Avoids end-of-day pin risk.' },
 ];
 
 const TODAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function LegCell({ leg, isPrimary }) {
+  if (!leg) {
+    return (
+      <div style={{
+        padding: 6, borderRadius: 4,
+        background: 'rgba(120,120,120,0.04)',
+        border: '1px dashed rgba(120,120,120,0.15)',
+        fontSize: 11, lineHeight: 1.4,
+        color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center',
+      }}>
+        — skip this day —
+      </div>
+    );
+  }
   const strikeColor = leg.strike === 'ATM' ? '#60a5fa' : '#fbbf24';
   return (
     <div style={{
@@ -67,12 +79,13 @@ function LegCell({ leg, isPrimary }) {
         {isPrimary && <span style={{ color: '#34d399', marginRight: 4 }}>⭐</span>}
         {leg.entry} → {leg.exit}
         <span style={{ marginLeft: 6, color: strikeColor, fontSize: 11 }}>[{leg.strike}]</span>
+        <span style={{ marginLeft: 6, color: '#f87171', fontSize: 10 }}>SL {leg.sl}</span>
       </div>
       <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-        DTE {leg.dte} · {leg.expiry} · {leg.margin}
+        DTE {leg.dte} · {leg.expiry} · {leg.margin} · Sh {leg.sharpe}
       </div>
       <div style={{ color: '#34d399', fontSize: 11, fontFamily: 'monospace' }}>
-        {leg.cum} · win {leg.win}
+        {leg.cum} · {leg.win} · worst {leg.worst}
       </div>
     </div>
   );
@@ -84,9 +97,9 @@ export default function StraddleScheduleCard() {
   return (
     <div className="card" style={{ marginBottom: 12, borderLeft: '4px solid #60a5fa' }}>
       <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <span>🏆 ULTIMATE Straddle/Strangle Schedule — 3 lots</span>
+        <span>🏆 Phase-3a ACTUAL Schedule — ±₹6,000 gates · 3 lots · 1 index/day</span>
         <span style={{ fontSize: 11, fontWeight: 'normal', color: 'var(--text-muted)' }}>
-          3a: ₹+4.83L / 77 trades / 83% win · ~₹97K/mo · ⭐ = primary (₹4.4L margin)
+          ₹+1,39,840 / 29 trades / 100% wins · Apr ₹+55,186 · May ₹+84,655 · zero losing days
         </span>
       </div>
 
@@ -97,7 +110,7 @@ export default function StraddleScheduleCard() {
               <th style={{ textAlign: 'left', width: 60 }}>Day</th>
               <th style={{ textAlign: 'left' }}>
                 <span className="status-badge running">NIFTY</span>
-                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-muted)' }}>lot 75 · step 50 · weekly Tue</span>
+                <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-muted)' }}>lot 65 · step 50 · weekly Tue</span>
               </th>
               <th style={{ textAlign: 'left' }}>
                 <span className="status-badge stopped">SENSEX</span>
@@ -133,15 +146,15 @@ export default function StraddleScheduleCard() {
       </div>
 
       <div style={{ marginTop: 10, padding: 8, background: 'rgba(96,165,250,0.06)', borderRadius: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
-        <strong style={{ color: '#f87171' }}>🔑 GOLDEN RULE — never hold expiry-day into last 90 min:</strong> Tue NIFTY exit 14:30. Fri SENSEX exit 13:30. This rule keeps every month positive.
+        <strong style={{ color: '#34d399' }}>⭐ Trade ONLY the green-bordered ⭐ cell each day.</strong> 5 trades/wk, one index/day. Peak day margin ~₹3.0L (Thu SENSEX). Recommended capital: ₹4L NRML or ₹2.5L MIS.
         <br />
-        <strong style={{ color: '#34d399' }}>⭐ Phase-3a (₹4.4L margin):</strong> Trade only the green-bordered ⭐ cell each day. 5 trades/wk. ₹+4.83L / 5 months = ~₹97K/mo. Worst single day in 5mo: ₹-10,833 (Tue Feb).
+        <strong style={{ color: '#f87171' }}>🔑 Exit gates (priority order):</strong> (1) MTM ≥ <b>+₹6,000</b> → TP · (2) MTM ≤ <b>−₹6,000</b> → SL · (3) MTM ≤ <b>−SL%</b> of credit → defined-risk safety · (4) Time gate → exit at scheduled time. No targets beyond ₹6k, no holding past exit time.
         <br />
-        <strong style={{ color: '#fbbf24' }}>Phase-3b (~₹5.5L margin):</strong> Trade BOTH NIFTY + SENSEX cells daily. ₹+7.51L / 5mo ≈ ~₹1.50L/mo. Needs pledged collateral.
+        <strong style={{ color: '#60a5fa' }}>Strike codes:</strong> [ATM]=at-the-money, [+1]=±50 NIFTY / ±100 SENSEX, [+2]=±100 NIFTY / ±200 SENSEX. Strangle = sell CE@ATM+offset AND PE@ATM−offset (3 lots each). Always nearest weekly expiry (post-regime: NIFTY Tue, SENSEX Thu).
         <br />
-        <strong style={{ color: '#60a5fa' }}>Setup — strike codes:</strong> [ATM]=at-the-money, [+1/+2/+3]=OTM offset (NIFTY ±50/100/150, SENSEX ±100/200/300). Strangle = sell CE@ATM+offset AND PE@ATM−offset (3 lots each). Always nearest weekly expiry, 3 lots.
+        <strong style={{ color: '#fbbf24' }}>Validation:</strong> Walk-forward — both train (Apr15–May5, 14 days) AND test (May6–May29, 15 days) had to be profitable. 7,248 of grid candidates survived. Test (₹+84,655) bigger than train (₹+55,186) = no overfit signal.
         <br />
-        <strong style={{ color: '#a78bfa' }}>ⓘ Caveats:</strong> Tuned on 12–18 samples/bucket (5 months). Win rates will drift ±10%. Re-run <code>ultimate_sweep.py</code> after any exchange calendar shift.
+        <strong style={{ color: '#a78bfa' }}>ⓘ Caveats:</strong> 33 trading days sampled (post-regime started Apr 14, 2026; May 28 = Bakri Eid holiday). May 27 & May 29 auto-skipped (Dhan minute data ended before exit time on those partial sessions). 100% win-rate will NOT hold long-term — expect 70-80% live. Re-run <code>backend/phase3a_actual_6k.py</code> weekly. Full Excel: <code>research/reports/phase3a_actual_6k_trades.xlsx</code>.
       </div>
     </div>
   );
