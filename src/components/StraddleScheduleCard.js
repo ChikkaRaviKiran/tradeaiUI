@@ -22,6 +22,16 @@ import React from 'react';
 
 // strike: 'ATM' | '+1' | '+2'   (offset in steps; NIFTY=50, SENSEX=100)
 // expiry: 'nearWk' (post-regime: NIFTY=Tue, SENSEX=Thu)
+// SL-ONLY variant (no TP cap) — backend/phase3a_slonly_6k.py
+// Total ₹+1,62,962 / 29 trades / 28-1 (96.6%) · Apr ₹+53,942 · May ₹+1,09,020
+const SCHEDULE_SLONLY = [
+  { day: 'Mon', sym: 'NIFTY',  strat: 'straddle',   entry: '09:25', exit: '12:00', sl: '30%', full: '₹+24,658', wn: '6/6', worst: '+₹244',   sharpe: '+2.03' },
+  { day: 'Tue', sym: 'NIFTY',  strat: 'strangle+1', entry: '09:25', exit: '13:30', sl: '50%', full: '₹+38,269', wn: '6/6', worst: '+₹829',   sharpe: '+1.50' },
+  { day: 'Wed', sym: 'SENSEX', strat: 'strangle+2', entry: '10:00', exit: '15:15', sl: '30%', full: '₹+33,357', wn: '6/6', worst: '+₹2,010', sharpe: '+1.69' },
+  { day: 'Thu', sym: 'SENSEX', strat: 'strangle+2', entry: '09:20', exit: '15:15', sl: '30%', full: '₹+47,325', wn: '5/6', worst: '−₹4,716', sharpe: '+1.03' },
+  { day: 'Fri', sym: 'NIFTY',  strat: 'straddle',   entry: '09:45', exit: '14:30', sl: '30%', full: '₹+19,354', wn: '5/5', worst: '+₹1,940', sharpe: '+2.39' },
+];
+
 const SCHEDULE = [
   { day: 'Mon',
     nifty:  { strike: '+1', expiry: 'nearWk', dte: 1, entry: '09:25', exit: '12:00', sl: '30%', cum: '₹+26,052', win: '6/6 (100%)', margin: '~₹2.3L', sharpe: '+2.08', worst: '+₹302' },
@@ -143,6 +153,69 @@ export default function StraddleScheduleCard() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* ───────── SL-ONLY side-by-side variant ───────── */}
+      <div style={{ marginTop: 14 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#fbbf24' }}>
+            ⚖️ Alternative: SL-only (no TP cap) — let winners run
+          </span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            ₹+1,62,962 / 29 trades / 28 wins (96.6%) · Apr ₹+53,942 · May ₹+1,09,020 · <span style={{ color: '#34d399' }}>+₹23,122 vs TP+SL (+16.5%)</span>
+          </span>
+        </div>
+        <div className="table-container" style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'separate', borderSpacing: '0 4px' }}>
+            <thead>
+              <tr style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                <th style={{ textAlign: 'left', width: 50 }}>Day</th>
+                <th style={{ textAlign: 'left' }}>Index</th>
+                <th style={{ textAlign: 'left' }}>Strategy</th>
+                <th style={{ textAlign: 'left' }}>Entry</th>
+                <th style={{ textAlign: 'left' }}>Exit</th>
+                <th style={{ textAlign: 'right' }}>Full ₹</th>
+                <th style={{ textAlign: 'right' }}>W/N</th>
+                <th style={{ textAlign: 'right' }}>Worst</th>
+                <th style={{ textAlign: 'right' }}>Sharpe</th>
+                <th style={{ textAlign: 'left' }}>Δ vs TP+SL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {SCHEDULE_SLONLY.map((r, i) => {
+                const base = SCHEDULE[i];
+                const baseLeg = base.nifty || base.sensex;
+                const exitChanged = baseLeg.exit !== r.exit;
+                const worstNeg = r.worst.startsWith('−');
+                return (
+                  <tr key={r.day} style={{ background: 'rgba(251,191,36,0.04)' }}>
+                    <td style={{ fontWeight: 600 }}>{r.day}</td>
+                    <td>
+                      <span className={r.sym === 'NIFTY' ? 'status-badge running' : 'status-badge stopped'}
+                            style={{ fontSize: 10 }}>{r.sym}</span>
+                    </td>
+                    <td style={{ fontFamily: 'monospace' }}>{r.strat}</td>
+                    <td style={{ fontFamily: 'monospace' }}>{r.entry}</td>
+                    <td style={{ fontFamily: 'monospace', color: exitChanged ? '#fbbf24' : 'inherit', fontWeight: exitChanged ? 700 : 400 }}>
+                      {r.exit}{exitChanged && <span style={{ fontSize: 9, marginLeft: 4 }}>↑</span>}
+                    </td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#34d399', fontWeight: 600 }}>{r.full}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{r.wn}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace', color: worstNeg ? '#f87171' : '#34d399' }}>{r.worst}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{r.sharpe}</td>
+                    <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      {exitChanged ? `exit ${baseLeg.exit} → ${r.exit}` : 'same exit'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
+          Tue NIFTY & Thu SENSEX hold longer without the +₹6k cap (Thu = full day). Trade-off: 1 losing trade
+          (Apr 16 Thu SENSEX −₹4,716 via SL%-of-credit) vs 100% on the TP+SL variant. Source: <code>backend/phase3a_slonly_6k.py</code>.
+        </div>
       </div>
 
       <div style={{ marginTop: 10, padding: 8, background: 'rgba(96,165,250,0.06)', borderRadius: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
