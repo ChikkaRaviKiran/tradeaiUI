@@ -92,6 +92,21 @@ function IndexRuntimeCard({ idx, snap, onClose, onReset }) {
       {snap.pe && (
         <div style={{ fontSize: 12 }}>PE: {snap.pe.symbol} @ {fmt(snap.pe.premium)}</div>
       )}
+      {snap.hedge_ce && (
+        <div style={{ fontSize: 12, marginTop: 4, color: 'var(--text-muted)' }}>
+          Hedge CE: {snap.hedge_ce.symbol} @ {fmt(snap.hedge_ce.premium)}
+        </div>
+      )}
+      {snap.hedge_pe && (
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          Hedge PE: {snap.hedge_pe.symbol} @ {fmt(snap.hedge_pe.premium)}
+        </div>
+      )}
+      {(snap.short_credit_pts || snap.hedge_cost_pts) ? (
+        <div style={{ fontSize: 11, marginTop: 4, color: 'var(--text-muted)' }}>
+          Short credit {fmt(snap.short_credit_pts)} − hedge {fmt(snap.hedge_cost_pts)} = net {fmt(snap.credit_pts)} pts
+        </div>
+      ) : null}
       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
         <button className="btn btn-sm" onClick={onClose} disabled={!snap.entered}>
           Force-close

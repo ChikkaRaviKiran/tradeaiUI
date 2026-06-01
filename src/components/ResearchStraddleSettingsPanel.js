@@ -260,6 +260,59 @@ export default function ResearchStraddleSettingsPanel() {
             </select>
           </label>
         </div>
+
+        {/* Hedge sub-section */}
+        <div style={{
+          marginTop: 14,
+          paddingTop: 10,
+          borderTop: '1px solid var(--border-color, #2a2a2a)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={!!settings.hedge_enabled}
+                onChange={(e) => setField('hedge_enabled', e.target.checked)}
+              />
+              <strong>Buy protective hedges</strong>
+            </label>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              BUY far-OTM CE+PE before SELLing shorts. Caps max loss & lowers margin.
+            </span>
+          </div>
+          {settings.hedge_enabled && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 10,
+            }}>
+              <label>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  NIFTY hedge premium ₹ (target)
+                </div>
+                <input
+                  type="number" min="0.5" step="0.5"
+                  value={settings.hedge_premium_nifty ?? 3}
+                  onChange={(e) => setField('hedge_premium_nifty', Number(e.target.value))}
+                  disabled={isSingle && settings.primary_index === 'SENSEX'}
+                  style={{ width: '100%' }}
+                />
+              </label>
+              <label>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  SENSEX hedge premium ₹ (target)
+                </div>
+                <input
+                  type="number" min="0.5" step="0.5"
+                  value={settings.hedge_premium_sensex ?? 10}
+                  onChange={(e) => setField('hedge_premium_sensex', Number(e.target.value))}
+                  disabled={isSingle && settings.primary_index === 'NIFTY'}
+                  style={{ width: '100%' }}
+                />
+              </label>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Step 3 — Schedule preview (read-only summary) */}
