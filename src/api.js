@@ -90,6 +90,14 @@ export const resetAtm = () => api.post('/api/atm/reset');
 export const fetchAtlStraddleSettings = () => api.get('/api/strategy-settings/atl-straddle');
 export const updateAtlStraddleSettings = (payload) => api.put('/api/strategy-settings/atl-straddle', payload);
 
+// Research Multi-Index Straddle APIs (new live modes: multi-index + indicator-gated)
+export const fetchAtmResearchSettings = () => api.get('/api/atm-research/settings');
+export const updateAtmResearchSettings = (payload) => api.put('/api/atm-research/settings', payload);
+export const fetchAtmResearchDefaults = () => api.get('/api/atm-research/defaults');
+export const fetchAtmResearchRuntime = () => api.get('/api/atm-research/runtime');
+export const forceCloseAtmResearch = (index) => api.post('/api/atm-research/force-close', index ? { index } : {});
+export const resetAtmResearch = (index) => api.post('/api/atm-research/reset', index ? { index } : {});
+
 // MoveDet & PDH/PDL execution settings (lots mode + funds)
 export const fetchMoveDetExecSettings = () => api.get('/api/strategy-settings/move-det');
 export const updateMoveDetExecSettings = (payload) => api.put('/api/strategy-settings/move-det', payload);
