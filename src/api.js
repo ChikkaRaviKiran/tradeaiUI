@@ -106,6 +106,11 @@ export const updateMoveDetBullExecSettings = (payload) => api.put('/api/strategy
 export const fetchPdhPdlExecSettings = () => api.get('/api/strategy-settings/pdh-pdl');
 export const updatePdhPdlExecSettings = (payload) => api.put('/api/strategy-settings/pdh-pdl', payload);
 
+// Global priority-handoff toggle (controls whether new MoveDet/Bull/PDH-PDL
+// entries force-close existing positions across the three priority scanners + ATM)
+export const fetchPriorityHandoffSettings = () => api.get('/api/strategy-settings/priority-handoff');
+export const updatePriorityHandoffSettings = (payload) => api.put('/api/strategy-settings/priority-handoff', payload);
+
 // Strategy Analytics (backtest results, rankings, today's plan)
 export const fetchStrategyAnalytics = () => api.get('/api/strategy-analytics');
 

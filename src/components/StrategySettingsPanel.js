@@ -8,6 +8,8 @@ import {
   updateMoveDetBullExecSettings,
   fetchPdhPdlExecSettings,
   updatePdhPdlExecSettings,
+  fetchPriorityHandoffSettings,
+  updatePriorityHandoffSettings,
   fetchTradingAccount,
   placeNowAtm,
 } from '../api';
@@ -55,11 +57,13 @@ export default function StrategySettingsPanel() {
   const [moveDet, setMoveDet] = useState(EXEC_DEFAULTS);
   const [moveDetBull, setMoveDetBull] = useState(EXEC_DEFAULTS);
   const [pdhPdl, setPdhPdl] = useState(EXEC_DEFAULTS);
+  const [handoff, setHandoff] = useState({ enabled: true });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingMoveDet, setSavingMoveDet] = useState(false);
   const [savingMoveDetBull, setSavingMoveDetBull] = useState(false);
   const [savingPdhPdl, setSavingPdhPdl] = useState(false);
+  const [savingHandoff, setSavingHandoff] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [accountInfo, setAccountInfo] = useState({ active: 'angel', running: false });
@@ -91,6 +95,13 @@ export default function StrategySettingsPanel() {
     try {
       const pdh = await fetchPdhPdlExecSettings();
       setPdhPdl((prev) => ({ ...prev, ...(pdh?.data || {}) }));
+    } catch {
+      // non-fatal
+    }
+
+    try {
+      const ph = await fetchPriorityHandoffSettings();
+      setHandoff((prev) => ({ ...prev, ...(ph?.data || {}) }));
     } catch {
       // non-fatal
     }
@@ -197,6 +208,24 @@ export default function StrategySettingsPanel() {
     setSavingMoveDetBull(false);
   };
 
+  const saveHandoff = async (nextEnabled) => {
+    setSavingHandoff(true);
+    setMessage('');
+    setError('');
+    try {
+      const res = await updatePriorityHandoffSettings({ enabled: !!nextEnabled });
+      setHandoff((prev) => ({ ...prev, ...(res?.data || { enabled: !!nextEnabled }) }));
+      setMessage(
+        nextEnabled
+          ? 'Priority handoff ENABLED: new entries will close existing positions.'
+          : 'Priority handoff DISABLED: new entries will be blocked if any position is open.'
+      );
+    } catch {
+      setError('Failed to save priority handoff setting.');
+    }
+    setSavingHandoff(false);
+  };
+
   const savePdhPdl = async () => {
     setSavingPdhPdl(true);
     setMessage('');
@@ -226,6 +255,31 @@ export default function StrategySettingsPanel() {
 
   return (
     <section style={{ marginTop: 12 }}>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="card-title" style={{ marginBottom: 10 }}>Priority Handoff (Global)</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+          Controls behaviour when a new MoveDet, MoveDet Bullish or PDH/PDL signal
+          fires while another priority-scanner trade or the ATM straddle is live.
+          <br />
+          <b>Exit existing positions = Yes</b>: force-close other open positions, then enter the new trade.
+          <br />
+          <b>Exit existing positions = No</b>: keep existing positions and SKIP the new entry.
+        </div>
+        <div className="grid grid-4" style={{ gap: 10 }}>
+          <label className="atl-field">
+            <span>Exit Existing Positions on New Entry</span>
+            <select
+              value={handoff.enabled ? 'true' : 'false'}
+              disabled={savingHandoff}
+              onChange={(e) => saveHandoff(e.target.value === 'true')}
+            >
+              <option value="true">Yes (close & enter)</option>
+              <option value="false">No (block new entry)</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
       <div className="card" style={{ marginBottom: 12 }}>
         <div className="card-title" style={{ marginBottom: 10 }}>Move Detection Settings</div>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
