@@ -218,7 +218,7 @@ export default function StrategySettingsPanel() {
       setMessage(
         nextEnabled
           ? 'Priority handoff ENABLED: new entries will close existing positions.'
-          : 'Priority handoff DISABLED: new entries will be blocked if any position is open.'
+          : 'Priority handoff DISABLED: new entries will be placed alongside existing positions.'
       );
     } catch {
       setError('Failed to save priority handoff setting.');
@@ -263,7 +263,7 @@ export default function StrategySettingsPanel() {
           <br />
           <b>Exit existing positions = Yes</b>: force-close other open positions, then enter the new trade.
           <br />
-          <b>Exit existing positions = No</b>: keep existing positions and SKIP the new entry.
+          <b>Exit existing positions = No</b>: keep existing positions open and still place the new entry (parallel positions allowed).
         </div>
         <div className="grid grid-4" style={{ gap: 10 }}>
           <label className="atl-field">
@@ -274,7 +274,7 @@ export default function StrategySettingsPanel() {
               onChange={(e) => saveHandoff(e.target.value === 'true')}
             >
               <option value="true">Yes (close & enter)</option>
-              <option value="false">No (block new entry)</option>
+              <option value="false">No (keep & enter)</option>
             </select>
           </label>
         </div>
