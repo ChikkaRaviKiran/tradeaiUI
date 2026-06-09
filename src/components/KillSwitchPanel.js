@@ -67,14 +67,27 @@ export default function KillSwitchPanel() {
       const res = await updateKillSwitch({ enabled: enabledInput, limit: limitNum });
       const s = res?.data?.state;
       if (s) {
+        // Reflect the new server state in the local inputs immediately so
+        // the user sees the change before the next 5s poll arrives.
         setState(s);
+        setLimitInput(String(s.limit ?? ''));
+        setEnabledInput(Boolean(s.enabled));
         setDirty(false);
-        setMsg({ ok: true, text: 'Saved. New limit applies on the next watchdog tick.' });
+
+        // Build a precise success message so the user knows exactly what
+        // changed and whether further action (Reset) is required.
+        const parts = [`Saved (limit ₹${Number(s.limit).toLocaleString('en-IN')}, ${s.enabled ? 'enabled' : 'disabled'}).`];
+        if (s.locked) {
+          parts.push('Switch is still TRIPPED — click “Reset Kill Switch” to allow new entries.');
+        } else {
+          parts.push('New limit applies on the next watchdog tick.');
+        }
+        setMsg({ ok: true, text: parts.join(' ') });
       } else {
         setMsg({ ok: false, text: res?.data?.error || 'Update failed.' });
       }
     } catch (e) {
-      setMsg({ ok: false, text: e?.message || 'Update failed.' });
+      setMsg({ ok: false, text: e?.response?.data?.detail || e?.message || 'Update failed.' });
     } finally {
       setSaving(false);
     }
@@ -98,16 +111,19 @@ export default function KillSwitchPanel() {
     }
   };
 
+  const enabled = Boolean(state?.enabled);
   const locked = Boolean(state?.locked);
   const pnl = Number(state?.current_pnl ?? 0);
   const limit = Number(state?.limit ?? 0);
   const usedPct = limit > 0 && pnl < 0 ? Math.min(100, (Math.abs(pnl) / limit) * 100) : 0;
 
-  const barColor = locked
-    ? 'var(--accent-red)'
-    : usedPct > 75
-      ? '#f59e0b'
-      : 'var(--accent-green)';
+  const barColor = !enabled
+    ? 'var(--text-muted)'
+    : locked
+      ? 'var(--accent-red)'
+      : usedPct > 75
+        ? '#f59e0b'
+        : 'var(--accent-green)';
 
   return (
     <div
@@ -123,6 +139,21 @@ export default function KillSwitchPanel() {
         style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}
       >
         <span>Account Daily-Loss Kill Switch</span>
+        {!enabled && (
+          <span
+            style={{
+              fontSize: 11,
+              padding: '2px 8px',
+              borderRadius: 4,
+              background: 'rgba(148,163,184,0.18)',
+              color: 'var(--text-muted)',
+              fontWeight: 600,
+              letterSpacing: 0.4,
+            }}
+          >
+            DISABLED
+          </span>
+        )}
         {locked && (
           <span
             style={{
