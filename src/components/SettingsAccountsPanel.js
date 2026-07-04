@@ -7,6 +7,9 @@ import {
   testBrokerAccount,
   setPrimaryBrokerAccount,
   setDataFeedBrokerAccount,
+  provisionProxy,
+  deleteProxy,
+  getProxyStatus,
 } from '../api';
 
 const BROKERS = [
@@ -20,18 +23,18 @@ const BROKERS = [
 // missing keys as empty strings, so nothing else needs to change).
 const BROKER_FIELDS = {
   angel: {
-    hint: 'AngelOne needs API Key, MPIN and TOTP Secret. Client ID is your AngelOne login (e.g. R123456).',
-    show: { api_key: true, mpin: true, totp_secret: true },
+    hint: 'AngelOne needs API Key, MPIN and TOTP Secret. Client ID is your AngelOne login (e.g. R123456). AngelOne whitelists IP per api_key — give each account its own proxy.',
+    show: { api_key: true, mpin: true, totp_secret: true, proxy_url: true },
     clientIdLabel: 'Client ID *',
   },
   kite: {
-    hint: 'Kite needs API Key + Secret. Access Token is generated daily via the Kite OAuth flow — paste it here or run the login URL after saving.',
+    hint: 'Kite needs API Key + Secret. Access Token is generated daily via the Kite OAuth flow — paste it here or run the login URL after saving. Kite whitelists a single IP per app — give each account its own proxy.',
     show: { api_key: true, api_secret: true, access_token: true, proxy_url: true },
     clientIdLabel: 'Client ID / User ID *',
   },
   dhan: {
-    hint: 'Dhan only needs the Client ID and Access Token from web.dhan.co → Profile → DhanHQ Trading APIs.',
-    show: { access_token: true },
+    hint: 'Dhan needs the Client ID and Access Token from web.dhan.co → Profile → DhanHQ Trading APIs. Assigning a proxy is optional but recommended for isolating rate-limits per account.',
+    show: { access_token: true, proxy_url: true },
     clientIdLabel: 'Client ID *',
   },
 };
@@ -122,6 +125,20 @@ export default function SettingsAccountsPanel() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Poll for proxy-provisioning updates. Mirrors OptionSelling: while any
+  // account has proxy_status === 'provisioning', refresh the list every 10s
+  // until AWS reports the IP (then proxy_status flips to 'active').
+  const provisioningKey = accounts
+    .filter((a) => a.proxy_status === 'provisioning')
+    .map((a) => a.id)
+    .join(',');
+  useEffect(() => {
+    if (!provisioningKey) return undefined;
+    const interval = setInterval(() => { load(); }, 10000);
+    return () => clearInterval(interval);
+  }, [provisioningKey, load]);
+
 
   const editing = form.id != null;
 
@@ -227,6 +244,35 @@ export default function SettingsAccountsPanel() {
     catch (e) { setError(`Set data feed failed: ${e?.response?.data?.detail || e.message}`); }
   });
 
+  const doProvisionProxy = (a) => withRowBusy(a.id, 'proxy', async () => {
+    setError(''); setMessage('');
+    try {
+      const res = await provisionProxy(a.id);
+      const msg = res?.data?.message || 'Proxy provisioned.';
+      if (res?.data?.status === 'error') {
+        setError(msg);
+      } else {
+        setMessage(msg);
+      }
+      await load();
+    } catch (e) {
+      setError(`Proxy provision failed: ${e?.response?.data?.message || e?.response?.data?.detail || e.message}`);
+    }
+  });
+
+  const doDeleteProxy = (a) => withRowBusy(a.id, 'proxy', async () => {
+    if (!window.confirm(`Delete the Lightsail proxy for "${a.name}"? The account row will keep working but lose its dedicated IP.`)) return;
+    setError(''); setMessage('');
+    try {
+      const res = await deleteProxy(a.id);
+      if (res?.data?.status === 'error') setError(res.data.message || 'Proxy delete failed');
+      else setMessage(res?.data?.message || 'Proxy deleted.');
+      await load();
+    } catch (e) {
+      setError(`Proxy delete failed: ${e?.response?.data?.message || e?.response?.data?.detail || e.message}`);
+    }
+  });
+
   const rows = useMemo(() => accounts, [accounts]);
 
   return (
@@ -261,6 +307,7 @@ export default function SettingsAccountsPanel() {
                 <th style={th}>Mode</th>
                 <th style={th}>Auth</th>
                 <th style={th}>Connection</th>
+                <th style={th}>Proxy IP</th>
                 <th style={th}>Flags</th>
                 <th style={th}>Actions</th>
               </tr>
@@ -284,6 +331,18 @@ export default function SettingsAccountsPanel() {
                   </td>
                   <td style={{ ...td, color: 'var(--text-secondary)' }}>{a.login_method}</td>
                   <td style={td}><StatusPill status={a.last_connection_status} /></td>
+                  <td style={td}>
+                    {a.proxy_status === 'active' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#10b981' }}>{a.proxy_ip}</span>
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{a.proxy_instance_name || 'active'}</span>
+                      </div>
+                    ) : a.proxy_status === 'provisioning' ? (
+                      <span style={{ fontSize: 11, color: '#f59e0b' }}>⏳ provisioning…</span>
+                    ) : (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>none</span>
+                    )}
+                  </td>
                   <td style={td}>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {a.is_primary && (
@@ -326,6 +385,25 @@ export default function SettingsAccountsPanel() {
                           onClick={() => doDataFeed(a)}
                         >
                           Set Data Feed
+                        </button>
+                      )}
+                      {a.proxy_status === 'active' || a.proxy_status === 'provisioning' ? (
+                        <button
+                          className="btn"
+                          style={{ ...actionBtn, background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
+                          disabled={!!rowBusy[`${a.id}:proxy`]}
+                          onClick={() => doDeleteProxy(a)}
+                        >
+                          {rowBusy[`${a.id}:proxy`] ? '…' : 'Delete Proxy'}
+                        </button>
+                      ) : (
+                        <button
+                          className="btn"
+                          style={{ ...actionBtn, background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}
+                          disabled={!!rowBusy[`${a.id}:proxy`]}
+                          onClick={() => doProvisionProxy(a)}
+                        >
+                          {rowBusy[`${a.id}:proxy`] ? '…' : 'Provision Proxy'}
                         </button>
                       )}
                       <button

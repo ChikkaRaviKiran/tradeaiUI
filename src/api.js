@@ -99,6 +99,12 @@ export const testBrokerAccount = (id) => api.post(`/api/accounts/${encodeURIComp
 export const setPrimaryBrokerAccount = (id) => api.post(`/api/accounts/${encodeURIComponent(id)}/set-primary`);
 export const setDataFeedBrokerAccount = (id) => api.post(`/api/accounts/${encodeURIComponent(id)}/set-data-feed`);
 
+// Proxy management (Lightsail SOCKS5)
+export const listProxies = () => api.get('/api/proxy/list');
+export const getProxyStatus = (id) => api.get(`/api/proxy/status/${encodeURIComponent(id)}`);
+export const provisionProxy = (id) => api.post(`/api/proxy/provision/${encodeURIComponent(id)}`);
+export const deleteProxy = (id) => api.delete(`/api/proxy/${encodeURIComponent(id)}`);
+
 // ── Multi-strategy StrategyInstances ─────────────────────────────────────
 export const fetchStrategyInstances = () => api.get('/api/strategy-instances');
 export const createStrategyInstance = (payload) => api.post('/api/strategy-instances', payload);
