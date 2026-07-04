@@ -20,6 +20,8 @@ import AlertsPanel from './components/AlertsPanel';
 import BrokerSettings from './components/BrokerSettings';
 import StrategySettingsPanel from './components/StrategySettingsPanel';
 import ResearchStraddleSettingsPanel from './components/ResearchStraddleSettingsPanel';
+import SettingsAccountsPanel from './components/SettingsAccountsPanel';
+import StrategyInstancesPanel from './components/StrategyInstancesPanel';
 import PatternEnginePage from './components/pattern_engine/PatternEnginePage';
 
 const REFRESH_INTERVAL = 12000;
@@ -63,6 +65,9 @@ function SettingsPage({ brokerStatus }) {
   return (
     <section className="section" style={{ marginTop: 4 }}>
       <div className="settings-subnav">
+        <NavLink to="/settings/accounts" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+          Accounts & Strategies
+        </NavLink>
         <NavLink to="/settings/strategy" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
           Strategy
         </NavLink>
@@ -75,6 +80,15 @@ function SettingsPage({ brokerStatus }) {
       </div>
 
       <Routes>
+        <Route
+          path="accounts"
+          element={(
+            <div style={{ marginTop: 12 }}>
+              <SettingsAccountsPanel />
+              <StrategyInstancesPanel />
+            </div>
+          )}
+        />
         <Route path="strategy" element={<StrategySettingsPanel />} />
         <Route path="atm-research" element={<ResearchStraddleSettingsPanel />} />
         <Route
@@ -96,7 +110,7 @@ function SettingsPage({ brokerStatus }) {
             </div>
           )}
         />
-        <Route path="*" element={<Navigate to="/settings/strategy" replace />} />
+        <Route path="*" element={<Navigate to="/settings/accounts" replace />} />
       </Routes>
     </section>
   );
@@ -224,7 +238,7 @@ function App() {
             <NavLink to="/patterns" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
               Patterns
             </NavLink>
-            <NavLink to="/settings/strategy" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+            <NavLink to="/settings/accounts" className={({ isActive }) => `tab-btn ${isActive || location.pathname.startsWith('/settings') ? 'active' : ''}`}>
               Settings
             </NavLink>
           </nav>

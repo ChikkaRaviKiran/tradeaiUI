@@ -90,6 +90,23 @@ export const resetAtm = () => api.post('/api/atm/reset');
 export const fetchAtlStraddleSettings = () => api.get('/api/strategy-settings/atl-straddle');
 export const updateAtlStraddleSettings = (payload) => api.put('/api/strategy-settings/atl-straddle', payload);
 
+// ── Multi-account Broker Accounts ────────────────────────────────────────
+export const fetchBrokerAccounts = () => api.get('/api/accounts');
+export const createBrokerAccount = (payload) => api.post('/api/accounts', payload);
+export const updateBrokerAccount = (id, payload) => api.put(`/api/accounts/${encodeURIComponent(id)}`, payload);
+export const deleteBrokerAccount = (id) => api.delete(`/api/accounts/${encodeURIComponent(id)}`);
+export const testBrokerAccount = (id) => api.post(`/api/accounts/${encodeURIComponent(id)}/test`);
+export const setPrimaryBrokerAccount = (id) => api.post(`/api/accounts/${encodeURIComponent(id)}/set-primary`);
+export const setDataFeedBrokerAccount = (id) => api.post(`/api/accounts/${encodeURIComponent(id)}/set-data-feed`);
+
+// ── Multi-strategy StrategyInstances ─────────────────────────────────────
+export const fetchStrategyInstances = () => api.get('/api/strategy-instances');
+export const createStrategyInstance = (payload) => api.post('/api/strategy-instances', payload);
+export const updateStrategyInstance = (id, payload) => api.put(`/api/strategy-instances/${encodeURIComponent(id)}`, payload);
+export const deleteStrategyInstance = (id) => api.delete(`/api/strategy-instances/${encodeURIComponent(id)}`);
+export const toggleStrategyInstance = (id, is_active) =>
+  api.post(`/api/strategy-instances/${encodeURIComponent(id)}/toggle`, { is_active });
+
 // Research Multi-Index Straddle APIs (new live modes: multi-index + indicator-gated)
 export const fetchAtmResearchSettings = () => api.get('/api/atm-research/settings');
 export const updateAtmResearchSettings = (payload) => api.put('/api/atm-research/settings', payload);
