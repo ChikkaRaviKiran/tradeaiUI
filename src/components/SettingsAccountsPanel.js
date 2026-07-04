@@ -15,6 +15,27 @@ const BROKERS = [
   { value: 'dhan', label: 'Dhan', color: '#a855f7' },
 ];
 
+// Which credential fields each broker actually needs.
+// Everything else is hidden from the form (and the server accepts
+// missing keys as empty strings, so nothing else needs to change).
+const BROKER_FIELDS = {
+  angel: {
+    hint: 'AngelOne needs API Key, MPIN and TOTP Secret. Client ID is your AngelOne login (e.g. R123456).',
+    show: { api_key: true, mpin: true, totp_secret: true },
+    clientIdLabel: 'Client ID *',
+  },
+  kite: {
+    hint: 'Kite needs API Key + Secret. Access Token is generated daily via the Kite OAuth flow — paste it here or run the login URL after saving.',
+    show: { api_key: true, api_secret: true, access_token: true, proxy_url: true },
+    clientIdLabel: 'Client ID / User ID *',
+  },
+  dhan: {
+    hint: 'Dhan only needs the Client ID and Access Token from web.dhan.co → Profile → DhanHQ Trading APIs.',
+    show: { access_token: true },
+    clientIdLabel: 'Client ID *',
+  },
+};
+
 const EMPTY_FORM = {
   id: null,
   name: '',
@@ -332,91 +353,108 @@ export default function SettingsAccountsPanel() {
           <div style={{ fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)' }}>
             {editing ? `Edit Account #${form.id}` : 'Add New Account'}
           </div>
-          <div className="grid grid-4" style={{ gap: 10 }}>
-            <label className="atl-field">
-              <span>Name *</span>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. My Angel A/c" />
-            </label>
-            <label className="atl-field">
-              <span>Broker *</span>
-              <select value={form.broker} onChange={(e) => setForm({ ...form, broker: e.target.value })}>
-                {BROKERS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
-              </select>
-            </label>
-            <label className="atl-field">
-              <span>Client ID *</span>
-              <input value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} />
-            </label>
-            <label className="atl-field">
-              <span>Auth Method</span>
-              <select value={form.login_method} onChange={(e) => setForm({ ...form, login_method: e.target.value })}>
-                <option value="manual">Manual</option>
-                <option value="oauth">OAuth</option>
-              </select>
-            </label>
+          {(() => {
+            const spec = BROKER_FIELDS[form.broker] || BROKER_FIELDS.angel;
+            const showField = (k) => !!spec.show[k];
+            return (
+              <>
+                {spec.hint && (
+                  <div style={{
+                    fontSize: 12, color: 'var(--text-muted)', marginBottom: 12,
+                    padding: '8px 12px', background: 'var(--bg-primary)',
+                    borderRadius: 6, borderLeft: '3px solid var(--accent-blue)',
+                  }}>
+                    {spec.hint}
+                  </div>
+                )}
+                <div className="grid grid-4" style={{ gap: 10 }}>
+                  <label className="atl-field">
+                    <span>Name *</span>
+                    <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. My Angel A/c" />
+                  </label>
+                  <label className="atl-field">
+                    <span>Broker *</span>
+                    <select value={form.broker} onChange={(e) => setForm({ ...form, broker: e.target.value })}>
+                      {BROKERS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="atl-field">
+                    <span>{spec.clientIdLabel}</span>
+                    <input value={form.client_id} onChange={(e) => setForm({ ...form, client_id: e.target.value })} />
+                  </label>
 
-            <label className="atl-field">
-              <span>API Key</span>
-              <input value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} />
-            </label>
-            <label className="atl-field">
-              <span>API Secret {editing && <em style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(blank = keep)</em>}</span>
-              <input type="password" value={form.api_secret} onChange={(e) => setForm({ ...form, api_secret: e.target.value })} />
-            </label>
-            <label className="atl-field">
-              <span>Password {editing && <em style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(blank = keep)</em>}</span>
-              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-            </label>
-            <label className="atl-field">
-              <span>MPIN {editing && <em style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(blank = keep)</em>}</span>
-              <input type="password" value={form.mpin} onChange={(e) => setForm({ ...form, mpin: e.target.value })} />
-            </label>
+                  {showField('api_key') && (
+                    <label className="atl-field">
+                      <span>API Key</span>
+                      <input value={form.api_key} onChange={(e) => setForm({ ...form, api_key: e.target.value })} />
+                    </label>
+                  )}
+                  {showField('api_secret') && (
+                    <label className="atl-field">
+                      <span>API Secret {editing && <em style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(blank = keep)</em>}</span>
+                      <input type="password" value={form.api_secret} onChange={(e) => setForm({ ...form, api_secret: e.target.value })} />
+                    </label>
+                  )}
+                  {showField('mpin') && (
+                    <label className="atl-field">
+                      <span>MPIN {editing && <em style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(blank = keep)</em>}</span>
+                      <input type="password" value={form.mpin} onChange={(e) => setForm({ ...form, mpin: e.target.value })} />
+                    </label>
+                  )}
+                  {showField('totp_secret') && (
+                    <label className="atl-field">
+                      <span>TOTP Secret {editing && <em style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(blank = keep)</em>}</span>
+                      <input type="password" value={form.totp_secret} onChange={(e) => setForm({ ...form, totp_secret: e.target.value })} />
+                    </label>
+                  )}
+                  {showField('access_token') && (
+                    <label className="atl-field">
+                      <span>Access Token {editing && <em style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(blank = keep)</em>}</span>
+                      <input type="password" value={form.access_token} onChange={(e) => setForm({ ...form, access_token: e.target.value })} />
+                    </label>
+                  )}
+                  {showField('proxy_url') && (
+                    <label className="atl-field">
+                      <span>Proxy URL (optional)</span>
+                      <input value={form.proxy_url} onChange={(e) => setForm({ ...form, proxy_url: e.target.value })} placeholder="socks5://user:pass@ip:port" />
+                    </label>
+                  )}
 
-            <label className="atl-field">
-              <span>TOTP Secret {editing && <em style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(blank = keep)</em>}</span>
-              <input type="password" value={form.totp_secret} onChange={(e) => setForm({ ...form, totp_secret: e.target.value })} />
-            </label>
-            <label className="atl-field">
-              <span>Access Token {editing && <em style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(blank = keep)</em>}</span>
-              <input type="password" value={form.access_token} onChange={(e) => setForm({ ...form, access_token: e.target.value })} />
-            </label>
-            <label className="atl-field">
-              <span>Proxy URL (optional)</span>
-              <input value={form.proxy_url} onChange={(e) => setForm({ ...form, proxy_url: e.target.value })} placeholder="socks5://user:pass@ip:port" />
-            </label>
-            <label className="atl-field">
-              <span>Mode</span>
-              <select
-                value={form.paper_trading ? 'paper' : 'live'}
-                onChange={(e) => setForm({ ...form, paper_trading: e.target.value === 'paper' })}
-              >
-                <option value="live">Live</option>
-                <option value="paper">Paper</option>
-              </select>
-            </label>
-
-            <label className="atl-field">
-              <span>Active</span>
-              <select value={form.is_active ? 'true' : 'false'} onChange={(e) => setForm({ ...form, is_active: e.target.value === 'true' })}>
-                <option value="true">Yes</option>
-                <option value="false">No</option>
-              </select>
-            </label>
-            <label className="atl-field">
-              <span>Primary Account</span>
-              <select value={form.is_primary ? 'true' : 'false'} onChange={(e) => setForm({ ...form, is_primary: e.target.value === 'true' })}>
-                <option value="false">No</option>
-                <option value="true">Yes</option>
-              </select>
-            </label>
-            <label className="atl-field">
-              <span>Use for Data Feed</span>
-              <select value={form.is_data_feed ? 'true' : 'false'} onChange={(e) => setForm({ ...form, is_data_feed: e.target.value === 'true' })}>
-                <option value="false">No</option>
-                <option value="true">Yes</option>
-              </select>
-            </label>
-          </div>
+                  <label className="atl-field">
+                    <span>Mode</span>
+                    <select
+                      value={form.paper_trading ? 'paper' : 'live'}
+                      onChange={(e) => setForm({ ...form, paper_trading: e.target.value === 'paper' })}
+                    >
+                      <option value="live">Live</option>
+                      <option value="paper">Paper</option>
+                    </select>
+                  </label>
+                  <label className="atl-field">
+                    <span>Active</span>
+                    <select value={form.is_active ? 'true' : 'false'} onChange={(e) => setForm({ ...form, is_active: e.target.value === 'true' })}>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </label>
+                  <label className="atl-field">
+                    <span>Primary Account</span>
+                    <select value={form.is_primary ? 'true' : 'false'} onChange={(e) => setForm({ ...form, is_primary: e.target.value === 'true' })}>
+                      <option value="false">No</option>
+                      <option value="true">Yes</option>
+                    </select>
+                  </label>
+                  <label className="atl-field">
+                    <span>Use for Data Feed</span>
+                    <select value={form.is_data_feed ? 'true' : 'false'} onChange={(e) => setForm({ ...form, is_data_feed: e.target.value === 'true' })}>
+                      <option value="false">No</option>
+                      <option value="true">Yes</option>
+                    </select>
+                  </label>
+                </div>
+              </>
+            );
+          })()}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
             <button className="btn btn-start" disabled={saving} onClick={save}>
