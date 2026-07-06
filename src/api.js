@@ -85,6 +85,13 @@ export const fetchAtmRuntime = () => api.get('/api/atm/runtime');
 export const forceCloseAtm = () => api.post('/api/atm/force-close');
 export const placeNowAtm = () => api.post('/api/atm/place-now');
 export const resetAtm = () => api.post('/api/atm/reset');
+// Multi-instance (registry) runtime — one entry per StrategyInstance row.
+// Use this to diagnose why one strategy placed but another didn't (broker
+// binding, wrong_index gating, halt state, order_error events, etc.).
+export const fetchAtmInstances = () => api.get('/api/atm/instances');
+export const forceCloseAtmInstance = (id) => api.post(`/api/atm/instances/${id}/force-close`);
+export const placeNowAtmInstance = (id) => api.post(`/api/atm/instances/${id}/place-now`);
+export const resetAtmInstance = (id) => api.post(`/api/atm/instances/${id}/reset`);
 
 // ATL Straddle strategy settings
 export const fetchAtlStraddleSettings = () => api.get('/api/strategy-settings/atl-straddle');

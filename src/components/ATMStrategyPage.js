@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { fetchAtmRuntime, forceCloseAtm, resetAtm } from '../api';
+import {
+  fetchAtmRuntime,
+  forceCloseAtm,
+  resetAtm,
+  fetchAtmInstances,
+  forceCloseAtmInstance,
+  placeNowAtmInstance,
+  resetAtmInstance,
+} from '../api';
 import StraddleScheduleCard from './StraddleScheduleCard';
 import ResearchStraddleCard from './ResearchStraddleCard';
 
@@ -36,17 +44,22 @@ function LegCard({ title, leg, badgeClass }) {
 
 export default function ATMStrategyPage() {
   const [runtime, setRuntime] = useState(null);
+  const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [busyInstance, setBusyInstance] = useState(null);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetchAtmRuntime();
-      // Backend returns { runtime: {...} }. Earlier prototype expected a
-      // status:'ok' wrapper which was never sent — accept either shape.
-      const rt = res?.data?.runtime ?? res?.data ?? null;
+      const [rtRes, instRes] = await Promise.all([
+        fetchAtmRuntime(),
+        fetchAtmInstances().catch(() => ({ data: { instances: [] } })),
+      ]);
+      const rt = rtRes?.data?.runtime ?? rtRes?.data ?? null;
       if (rt) setRuntime(rt);
+      const inst = instRes?.data?.instances || [];
+      setInstances(Array.isArray(inst) ? inst : []);
     } catch {
       // noop
     }
@@ -75,6 +88,122 @@ export default function ATMStrategyPage() {
       <StraddleScheduleCard />
 
       <ResearchStraddleCard />
+
+      {instances.length > 1 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="card-title" style={{ marginBottom: 8 }}>
+            Strategy Instances ({instances.length})
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+            One row per user-configured strategy. The main panel below shows the primary instance;
+            use this table to diagnose why another instance did or didn't trade.
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Index</th>
+                <th>Mode</th>
+                <th>Broker</th>
+                <th>Phase</th>
+                <th>In Trade</th>
+                <th>Halted</th>
+                <th>Last Event</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {instances.map((it) => {
+                const lastEvt = (it.events || []).slice(-1)[0];
+                return (
+                  <tr key={it.instance_id}>
+                    <td>{it.instance_id}</td>
+                    <td>{it.index || '-'}</td>
+                    <td>
+                      <span className={`status-badge ${it.live_mode ? 'running' : 'stopped'}`}>
+                        {it.live_mode ? 'LIVE' : 'PAPER'}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        className={`status-badge ${
+                          !it.live_mode ? 'stopped' : it.broker_ready ? 'running' : 'stopped'
+                        }`}
+                        title={
+                          it.live_mode && !it.broker_ready
+                            ? 'No broker attached — bound account is missing credentials'
+                            : ''
+                        }
+                      >
+                        {it.live_mode
+                          ? it.broker_ready
+                            ? it.broker_name || 'Ready'
+                            : 'NOT READY'
+                          : 'PAPER'}
+                      </span>
+                    </td>
+                    <td>{it.phase || 'IDLE'}</td>
+                    <td>{it.in_trade ? 'Yes' : 'No'}</td>
+                    <td>
+                      {it.halted ? (
+                        <span style={{ color: '#f87171' }} title={it.halt_reason || ''}>HALTED</span>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                      {lastEvt ? `${lastEvt.time} ${lastEvt.event}` : '-'}
+                    </td>
+                    <td style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        className="btn"
+                        style={{ padding: '2px 8px', fontSize: 12 }}
+                        disabled={busyInstance === it.instance_id}
+                        onClick={async () => {
+                          setBusyInstance(it.instance_id);
+                          try { await placeNowAtmInstance(it.instance_id); await load(); } catch { /* noop */ }
+                          setBusyInstance(null);
+                        }}
+                      >
+                        Place Now
+                      </button>
+                      {it.halted && (
+                        <button
+                          className="btn"
+                          style={{ padding: '2px 8px', fontSize: 12 }}
+                          disabled={busyInstance === it.instance_id}
+                          onClick={async () => {
+                            setBusyInstance(it.instance_id);
+                            try { await resetAtmInstance(it.instance_id); await load(); } catch { /* noop */ }
+                            setBusyInstance(null);
+                          }}
+                        >
+                          Reset
+                        </button>
+                      )}
+                      {it.in_trade && (
+                        <button
+                          className="btn btn-stop"
+                          style={{ padding: '2px 8px', fontSize: 12 }}
+                          disabled={busyInstance === it.instance_id}
+                          onClick={async () => {
+                            if (!window.confirm(`Force close instance ${it.instance_id}?`)) return;
+                            setBusyInstance(it.instance_id);
+                            try { await forceCloseAtmInstance(it.instance_id); await load(); } catch { /* noop */ }
+                            setBusyInstance(null);
+                          }}
+                        >
+                          Close
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {runtime?.halted && (
         <div className="card" style={{ marginBottom: 12, borderLeft: '4px solid #f87171', background: 'rgba(248,113,113,0.08)' }}>
@@ -105,6 +234,31 @@ export default function ATMStrategyPage() {
             <div className="card-title">Mode</div>
             <div className={`status-badge ${runtime?.live_mode ? 'running' : 'stopped'}`}>
               {runtime?.live_mode ? 'LIVE' : 'PAPER'}
+            </div>
+          </div>
+          <div>
+            <div className="card-title">Broker</div>
+            <div
+              className={`status-badge ${
+                !runtime?.live_mode
+                  ? 'stopped'
+                  : runtime?.broker_ready
+                  ? 'running'
+                  : 'stopped'
+              }`}
+              title={
+                runtime?.live_mode && !runtime?.broker_ready
+                  ? 'Live mode is on but no broker is attached to this strategy. '
+                    + 'The bound account row is missing credentials (typically Dhan access_token) — '
+                    + 'edit the account in Settings and paste the access token.'
+                  : ''
+              }
+            >
+              {runtime?.live_mode
+                ? runtime?.broker_ready
+                  ? runtime.broker_name || 'Ready'
+                  : 'NOT READY'
+                : 'PAPER'}
             </div>
           </div>
           <div>
