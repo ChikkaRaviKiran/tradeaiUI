@@ -68,7 +68,7 @@ export const testDhanConnection = () => api.post('/api/broker/dhan/test');
 export const updateDhanCredentials = (payload) => api.post('/api/broker/dhan/update-credentials', payload);
 export const refreshDhanInstruments = () => api.post('/api/broker/dhan/refresh-instruments');
 
-// Account-level daily-loss kill switch (Dhan only)
+// Account-level daily-loss kill switch (per BrokerAccount)
 export const fetchKillSwitch = () => api.get('/api/risk/kill-switch');
 export const updateKillSwitch = (payload) => api.put('/api/risk/kill-switch', payload);
 export const resetKillSwitch = (payload) => api.post('/api/risk/kill-switch/reset', payload || {});

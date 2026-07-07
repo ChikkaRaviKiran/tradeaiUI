@@ -20,32 +20,27 @@ function fmtTime(iso) {
 }
 
 export default function KillSwitchPanel() {
-  const [state, setState] = useState(null);
+  const [states, setStates] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [limitInput, setLimitInput] = useState('');
-  const [enabledInput, setEnabledInput] = useState(true);
-  const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const [msg, setMsg] = useState(null);
 
   const load = useCallback(async () => {
     try {
       const res = await fetchKillSwitch();
-      const s = res?.data?.state;
-      if (s) {
-        setState(s);
-        if (!dirty) {
-          setLimitInput(String(s.limit ?? ''));
-          setEnabledInput(Boolean(s.enabled));
-        }
+      const list = res?.data?.states;
+      if (Array.isArray(list)) {
+        setStates(list);
+      } else if (res?.data?.state) {
+        // Backwards-compat if the server ever falls back to single-state.
+        setStates([res.data.state]);
+      } else {
+        setStates([]);
       }
-    } catch (e) {
-      setState(null);
+    } catch {
+      setStates([]);
     } finally {
       setLoading(false);
     }
-  }, [dirty]);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -54,63 +49,64 @@ export default function KillSwitchPanel() {
     return () => clearInterval(id);
   }, [load]);
 
-  const save = async () => {
-    setSaving(true);
-    setMsg(null);
-    try {
-      const limitNum = parseFloat(limitInput);
-      if (!Number.isFinite(limitNum) || limitNum <= 0) {
-        setMsg({ ok: false, text: 'Limit must be a positive number.' });
-        setSaving(false);
-        return;
-      }
-      const res = await updateKillSwitch({ enabled: enabledInput, limit: limitNum });
-      const s = res?.data?.state;
-      if (s) {
-        // Reflect the new server state in the local inputs immediately so
-        // the user sees the change before the next 5s poll arrives.
-        setState(s);
-        setLimitInput(String(s.limit ?? ''));
-        setEnabledInput(Boolean(s.enabled));
-        setDirty(false);
+  if (loading && states.length === 0) {
+    return (
+      <div className="card" style={{ padding: 16, marginTop: 16 }}>
+        <div className="card-title" style={{ marginBottom: 8 }}>
+          Account Daily-Loss Kill Switch
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</div>
+      </div>
+    );
+  }
 
-        // Build a precise success message so the user knows exactly what
-        // changed and whether further action (Reset) is required.
-        const parts = [`Saved (limit ₹${Number(s.limit).toLocaleString('en-IN')}, ${s.enabled ? 'enabled' : 'disabled'}).`];
-        if (s.locked) {
-          parts.push('Switch is still TRIPPED — click “Reset Kill Switch” to allow new entries.');
-        } else {
-          parts.push('New limit applies on the next watchdog tick.');
-        }
-        setMsg({ ok: true, text: parts.join(' ') });
-      } else {
-        setMsg({ ok: false, text: res?.data?.error || 'Update failed.' });
-      }
-    } catch (e) {
-      setMsg({ ok: false, text: e?.response?.data?.detail || e?.message || 'Update failed.' });
-    } finally {
-      setSaving(false);
-    }
-  };
+  if (states.length === 0) {
+    return (
+      <div className="card" style={{ padding: 16, marginTop: 16 }}>
+        <div className="card-title" style={{ marginBottom: 8 }}>
+          Account Daily-Loss Kill Switch
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          No active Dhan broker accounts configured. Add one in the Accounts
+          settings above to enable the per-account kill switch.
+        </div>
+      </div>
+    );
+  }
 
-  const doReset = async () => {
-    if (!window.confirm('Reset the kill switch? Bot entries will resume for today.')) return;
-    setResetting(true);
-    setMsg(null);
-    try {
-      const res = await resetKillSwitch({ reason: 'manual_reset_via_ui' });
-      const s = res?.data?.state;
-      if (s) {
-        setState(s);
-        setMsg({ ok: true, text: 'Kill switch cleared. Watch for re-trip on next loss.' });
-      }
-    } catch (e) {
-      setMsg({ ok: false, text: e?.message || 'Reset failed.' });
-    } finally {
-      setResetting(false);
-    }
-  };
+  return (
+    <>
+      {states.map((s) => (
+        <KillSwitchCard
+          key={`ks-${s.account_id}`}
+          state={s}
+          onSaved={load}
+        />
+      ))}
+    </>
+  );
+}
 
+function KillSwitchCard({ state, onSaved }) {
+  const [limitInput, setLimitInput] = useState(String(state?.limit ?? ''));
+  const [enabledInput, setEnabledInput] = useState(Boolean(state?.enabled));
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [msg, setMsg] = useState(null);
+
+  // Keep local form state in sync with server state when the parent
+  // re-polls, but ONLY when the user isn't mid-edit — otherwise we'd
+  // stomp on their in-progress typing every 5 seconds.
+  useEffect(() => {
+    if (dirty) return;
+    setLimitInput(String(state?.limit ?? ''));
+    setEnabledInput(Boolean(state?.enabled));
+  }, [state?.limit, state?.enabled, dirty]);
+
+  const accountId = Number(state?.account_id ?? 0);
+  const accountName = state?.account_name || `account-${accountId}`;
+  const brokerType = (state?.broker || 'dhan').toUpperCase();
   const enabled = Boolean(state?.enabled);
   const locked = Boolean(state?.locked);
   const pnl = Number(state?.current_pnl ?? 0);
@@ -125,6 +121,66 @@ export default function KillSwitchPanel() {
         ? '#f59e0b'
         : 'var(--accent-green)';
 
+  const save = async () => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const limitNum = parseFloat(limitInput);
+      if (!Number.isFinite(limitNum) || limitNum <= 0) {
+        setMsg({ ok: false, text: 'Limit must be a positive number.' });
+        setSaving(false);
+        return;
+      }
+      const res = await updateKillSwitch({
+        account_id: accountId,
+        enabled: enabledInput,
+        limit: limitNum,
+      });
+      const s = res?.data?.state;
+      if (s) {
+        setLimitInput(String(s.limit ?? ''));
+        setEnabledInput(Boolean(s.enabled));
+        setDirty(false);
+
+        const parts = [`Saved (limit ₹${Number(s.limit).toLocaleString('en-IN')}, ${s.enabled ? 'enabled' : 'disabled'}).`];
+        if (s.locked) {
+          parts.push('Switch is still TRIPPED — click “Reset Kill Switch” to allow new entries.');
+        } else {
+          parts.push('New limit applies on the next watchdog tick.');
+        }
+        setMsg({ ok: true, text: parts.join(' ') });
+        if (typeof onSaved === 'function') onSaved();
+      } else {
+        setMsg({ ok: false, text: res?.data?.error || 'Update failed.' });
+      }
+    } catch (e) {
+      setMsg({ ok: false, text: e?.response?.data?.detail || e?.message || 'Update failed.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const doReset = async () => {
+    if (!window.confirm(`Reset the kill switch for ${accountName}? Bot entries on this account will resume for today.`)) return;
+    setResetting(true);
+    setMsg(null);
+    try {
+      const res = await resetKillSwitch({
+        account_id: accountId,
+        reason: 'manual_reset_via_ui',
+      });
+      const s = res?.data?.state;
+      if (s) {
+        setMsg({ ok: true, text: 'Kill switch cleared. Watch for re-trip on next loss.' });
+        if (typeof onSaved === 'function') onSaved();
+      }
+    } catch (e) {
+      setMsg({ ok: false, text: e?.message || 'Reset failed.' });
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <div
       className="card"
@@ -136,9 +192,22 @@ export default function KillSwitchPanel() {
     >
       <div
         className="card-title"
-        style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}
+        style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}
       >
-        <span>Account Daily-Loss Kill Switch</span>
+        <span>Kill Switch — {accountName}</span>
+        <span
+          style={{
+            fontSize: 10,
+            padding: '2px 8px',
+            borderRadius: 4,
+            background: 'rgba(148,163,184,0.15)',
+            color: 'var(--text-secondary)',
+            fontWeight: 600,
+            letterSpacing: 0.4,
+          }}
+        >
+          {brokerType}
+        </span>
         {!enabled && (
           <span
             style={{
@@ -172,10 +241,10 @@ export default function KillSwitchPanel() {
       </div>
 
       <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14, lineHeight: 1.6 }}>
-        Polls Dhan positions every few seconds and computes total realised + unrealised PnL
-        across <strong>every</strong> position in the account (including manually-placed ones).
-        When the loss limit is breached, all positions are force-closed and any further
-        <em> new entries</em> are blocked until midnight IST. Exits / squareoffs always pass through.
+        Polls this account's Dhan positions every few seconds and computes total realised + unrealised PnL
+        across <strong>every</strong> position (including manually-placed ones).
+        When the loss limit is breached, only this account's positions are force-closed and further
+        <em> new entries</em> on this account are blocked until midnight IST. Other accounts continue trading.
       </div>
 
       {/* Live PnL bar */}
@@ -340,10 +409,6 @@ export default function KillSwitchPanel() {
         >
           Last watchdog error: {state.last_error}
         </div>
-      )}
-
-      {loading && !state && (
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</div>
       )}
     </div>
   );

@@ -56,6 +56,12 @@ export default function PositionsPage() {
     const items = openPositions.filter((p) => selected[p.id]).map((p) => ({
       tradingsymbol: p.tradingsymbol,
       symboltoken: p.symboltoken,
+      // Dhan-native identifiers. When present, the backend skips symbol
+      // re-resolution (which fails for Dhan display symbols like
+      // "NIFTY-Jul2026-24100-PE") and routes the exit directly to the
+      // correct account's broker.
+      security_id: p.symboltoken,
+      account_id: p.account_id,
       exchange: p.exchange,
       product: p.product,
       net_qty: p.net_qty,
@@ -64,11 +70,20 @@ export default function PositionsPage() {
     if (!window.confirm(`Exit ${items.length} selected position(s)?`)) return;
     setExiting(true);
     try {
-      await exitPositions({ positions: items });
+      const res = await exitPositions({ positions: items });
+      // Surface backend rejections so the user knows why exits didn't fire
+      // (e.g. wrong account_id, unresolved securityId, broker rejection).
+      const failed = (res?.data?.results || []).filter((r) => !r.ok);
+      if (failed.length) {
+        const msg = failed
+          .map((r) => `${r.tradingsymbol} (${r.account_name || 'unknown'}): ${r.message || 'rejected'}`)
+          .join('\n');
+        window.alert(`Some exits failed:\n${msg}`);
+      }
       setSelected({});
       await load();
-    } catch {
-      // ignore
+    } catch (e) {
+      window.alert(`Exit request failed: ${e?.response?.data?.detail || e?.message || 'unknown error'}`);
     }
     setExiting(false);
   };
