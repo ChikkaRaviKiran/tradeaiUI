@@ -113,6 +113,19 @@ function KillSwitchCard({ state, onSaved }) {
   const limit = Number(state?.limit ?? 0);
   const usedPct = limit > 0 && pnl < 0 ? Math.min(100, (Math.abs(pnl) / limit) * 100) : 0;
 
+  // Save should light up whenever the on-screen values differ from what
+  // the server currently holds — not only when the user has typed since
+  // mount. Relying solely on a `dirty` flag makes the button appear
+  // permanently grey when the initial input value already matches
+  // (e.g. after a page reload while TRIPPED), so users think it's
+  // unclickable.
+  const parsedLimit = parseFloat(limitInput);
+  const validLimit = Number.isFinite(parsedLimit) && parsedLimit > 0;
+  const hasChanges =
+    (validLimit && parsedLimit !== Number(state?.limit ?? 0)) ||
+    Boolean(enabledInput) !== Boolean(state?.enabled);
+  const canSave = validLimit && !saving && (hasChanges || dirty);
+
   const barColor = !enabled
     ? 'var(--text-muted)'
     : locked
@@ -136,8 +149,15 @@ function KillSwitchCard({ state, onSaved }) {
         enabled: enabledInput,
         limit: limitNum,
       });
+      // The backend returns { ok, state, error? } — treat an explicit
+      // ok:false OR a missing state as failure and surface the exact
+      // error so users aren't left guessing.
+      const okFlag = res?.data?.ok;
       const s = res?.data?.state;
-      if (s) {
+      const errText = res?.data?.error;
+      if (okFlag === false || (!s && errText)) {
+        setMsg({ ok: false, text: errText || 'Update failed.' });
+      } else if (s) {
         setLimitInput(String(s.limit ?? ''));
         setEnabledInput(Boolean(s.enabled));
         setDirty(false);
@@ -151,10 +171,15 @@ function KillSwitchCard({ state, onSaved }) {
         setMsg({ ok: true, text: parts.join(' ') });
         if (typeof onSaved === 'function') onSaved();
       } else {
-        setMsg({ ok: false, text: res?.data?.error || 'Update failed.' });
+        setMsg({ ok: false, text: errText || 'Update failed (no state returned).' });
       }
     } catch (e) {
-      setMsg({ ok: false, text: e?.response?.data?.detail || e?.message || 'Update failed.' });
+      const detail =
+        e?.response?.data?.detail ||
+        e?.response?.data?.error ||
+        e?.message ||
+        'Update failed.';
+      setMsg({ ok: false, text: `Update failed: ${detail}` });
     } finally {
       setSaving(false);
     }
@@ -338,17 +363,24 @@ function KillSwitchCard({ state, onSaved }) {
         <button
           type="button"
           onClick={save}
-          disabled={saving || !dirty}
+          disabled={!canSave}
+          title={
+            !validLimit
+              ? 'Enter a positive limit first'
+              : hasChanges
+                ? 'Save changes to this account'
+                : 'No changes — modify a value first'
+          }
           style={{
             padding: '7px 16px',
             borderRadius: 6,
             border: 'none',
-            cursor: saving || !dirty ? 'not-allowed' : 'pointer',
+            cursor: !canSave ? 'not-allowed' : 'pointer',
             background: 'rgba(59,130,246,0.15)',
             color: 'var(--accent-blue)',
             fontSize: 13,
             fontWeight: 600,
-            opacity: saving || !dirty ? 0.5 : 1,
+            opacity: !canSave ? 0.5 : 1,
           }}
         >
           {saving ? 'Saving…' : 'Save'}
