@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { captureEodSnapshot, fetchTradeHistory } from '../api';
+import { captureEodSnapshot, fetchBrokerAccounts, fetchTradeHistory } from '../api';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -38,17 +38,30 @@ export default function HistoryPage() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [snapSaving, setSnapSaving] = useState(false);
+  const [accounts, setAccounts] = useState([]);
+  const [filterAccount, setFilterAccount] = useState(0); // 0 = All
+
+  // Load broker accounts once for the filter dropdown
+  useEffect(() => {
+    fetchBrokerAccounts()
+      .then((r) => {
+        if (r.data?.accounts) setAccounts(r.data.accounts);
+      })
+      .catch(() => {});
+  }, []);
 
   const loadMonth = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchTradeHistory({ month: `${year}-${String(month).padStart(2, '0')}` });
+      const params = { month: `${year}-${String(month).padStart(2, '0')}` };
+      if (filterAccount) params.account_id = filterAccount;
+      const res = await fetchTradeHistory(params);
       setMonthData(res.data || null);
     } catch {
       setMonthData(null);
     }
     setLoading(false);
-  }, [year, month]);
+  }, [year, month, filterAccount]);
 
   useEffect(() => {
     loadMonth();
@@ -57,9 +70,16 @@ export default function HistoryPage() {
   }, [loadMonth]);
 
   const loadDay = async (dateStr) => {
+    if (selectedDate === dateStr) {
+      setSelectedDate(null);
+      setDayData(null);
+      return;
+    }
     setSelectedDate(dateStr);
     try {
-      const res = await fetchTradeHistory({ date: dateStr });
+      const params = { date: dateStr };
+      if (filterAccount) params.account_id = filterAccount;
+      const res = await fetchTradeHistory(params);
       setDayData(res.data || null);
     } catch {
       setDayData(null);
@@ -70,6 +90,9 @@ export default function HistoryPage() {
   const dayMap = {};
   (monthData?.days || []).forEach((d) => { dayMap[d.date] = d; });
   const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+  const winRate = monthData?.trading_days
+    ? Math.round((monthData.winning_days / monthData.trading_days) * 100)
+    : 0;
 
   return (
     <section className="section" style={{ marginTop: 4 }}>
@@ -80,6 +103,21 @@ export default function HistoryPage() {
           <button className="btn" onClick={() => (month === 1 ? (setYear((y) => y - 1), setMonth(12)) : setMonth((m) => m - 1))}>◀</button>
           <div style={{ minWidth: 200, textAlign: 'center', fontWeight: 600 }}>{MONTH_NAMES[month - 1]} {year}</div>
           <button className="btn" onClick={() => (month === 12 ? (setYear((y) => y + 1), setMonth(1)) : setMonth((m) => m + 1))}>▶</button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Account</label>
+          <select
+            value={filterAccount}
+            onChange={(e) => setFilterAccount(Number(e.target.value))}
+            style={{ padding: '6px 10px', background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: 4 }}
+          >
+            <option value={0}>All Accounts</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name} {a.paper_trading ? '(Paper)' : '(Live)'}
+              </option>
+            ))}
+          </select>
         </div>
         <button
           className="btn btn-start"
@@ -98,9 +136,39 @@ export default function HistoryPage() {
         <div className="card" style={{ marginBottom: 12, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <div><div className="card-title">Month PnL</div><div className="stat-value" style={{ fontSize: '1.2rem', color: (monthData.month_pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{formatPnl(monthData.month_pnl)}</div></div>
           <div><div className="card-title">Trading Days</div><div className="stat-value" style={{ fontSize: '1.2rem' }}>{monthData.trading_days || 0}</div></div>
-          <div><div className="card-title">Winning Days</div><div className="stat-value" style={{ fontSize: '1.2rem' }}>{monthData.winning_days || 0}</div></div>
-          <div><div className="card-title">Losing Days</div><div className="stat-value" style={{ fontSize: '1.2rem' }}>{monthData.losing_days || 0}</div></div>
-          <div><div className="card-title">Trades</div><div className="stat-value" style={{ fontSize: '1.2rem' }}>{monthData.month_trades || 0}</div></div>
+          <div><div className="card-title">Winning Days</div><div className="stat-value" style={{ fontSize: '1.2rem', color: 'var(--accent-green)' }}>{monthData.winning_days || 0}</div></div>
+          <div><div className="card-title">Losing Days</div><div className="stat-value" style={{ fontSize: '1.2rem', color: 'var(--accent-red)' }}>{monthData.losing_days || 0}</div></div>
+          <div><div className="card-title">Total Trades</div><div className="stat-value" style={{ fontSize: '1.2rem' }}>{monthData.month_trades || 0}</div></div>
+          <div><div className="card-title">Win Rate</div><div className="stat-value" style={{ fontSize: '1.2rem' }}>{winRate}%</div></div>
+        </div>
+      )}
+
+      {monthData?.accounts && monthData.accounts.length > 0 && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Per-Account Summary</div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {monthData.accounts.map((a) => (
+              <div
+                key={`${a.account_id || a.account_name}`}
+                style={{
+                  flex: '1 1 220px',
+                  minWidth: 200,
+                  padding: '10px 14px',
+                  borderRadius: 6,
+                  background: 'var(--bg-secondary, rgba(0,0,0,0.15))',
+                  borderLeft: `3px solid ${(a.pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}`,
+                }}
+              >
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{a.account_name}</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: (a.pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                  {formatPnl(a.pnl)}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {a.trading_days} trading day{a.trading_days !== 1 ? 's' : ''}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -121,6 +189,7 @@ export default function HistoryPage() {
                     const info = dayMap[dateStr];
                     const pnl = info?.broker_pnl != null ? info.broker_pnl : info?.pnl;
                     const hasTrade = !!info;
+                    const acctCount = info?.accounts?.length || 0;
                     return (
                       <td
                         key={dateStr}
@@ -131,8 +200,13 @@ export default function HistoryPage() {
                         {hasTrade ? (
                           <>
                             <div style={{ color: (pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontSize: 12 }}>{formatPnl(pnl)}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{info.trades} trades</div>
-                            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{info.source === 'eod_snapshot' ? 'EOD' : 'Trades'}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{info.trades} trade{info.trades !== 1 ? 's' : ''}</div>
+                            {info.source === 'eod_snapshot' && (
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>✓ EOD</div>
+                            )}
+                            {acctCount > 1 && (
+                              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{acctCount} accts</div>
+                            )}
                           </>
                         ) : (
                           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>—</div>
@@ -150,19 +224,40 @@ export default function HistoryPage() {
       {selectedDate && dayData && (
         <div className="card" style={{ marginTop: 12 }}>
           <div className="card-title" style={{ marginBottom: 8 }}>Day Detail — {selectedDate}</div>
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 8 }}>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 12 }}>
             <div>Trades: <strong>{dayData.total_trades || 0}</strong></div>
             <div>Broker PnL: <strong style={{ color: (dayData.broker_pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{formatPnl(dayData.broker_pnl)}</strong></div>
             <div>Trade PnL: <strong style={{ color: (dayData.month_pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{formatPnl(dayData.month_pnl)}</strong></div>
           </div>
-          {(dayData.broker_accounts || []).length > 0 && (
+          {(dayData.broker_accounts || []).length > 0 ? (
             <div>
-              {(dayData.broker_accounts || []).map((a, i) => (
-                <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  {a.account_name}: {formatPnl(a.broker_pnl)} ({a.positions} positions)
-                </div>
-              ))}
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Per-Account Broker P&amp;L</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {(dayData.broker_accounts || []).map((a, i) => (
+                  <div
+                    key={`${a.account_id || a.account_name}-${i}`}
+                    style={{
+                      flex: '1 1 200px',
+                      minWidth: 180,
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      background: 'var(--bg-secondary, rgba(0,0,0,0.15))',
+                      borderLeft: `3px solid ${(a.broker_pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}`,
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{a.account_name}</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: (a.broker_pnl || 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                      {formatPnl(a.broker_pnl)}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      {a.positions} position{a.positions !== 1 ? 's' : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>No broker P&amp;L snapshot for this day.</div>
           )}
         </div>
       )}
