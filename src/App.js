@@ -22,6 +22,7 @@ import StrategySettingsPanel from './components/StrategySettingsPanel';
 import ResearchStraddleSettingsPanel from './components/ResearchStraddleSettingsPanel';
 import SettingsAccountsPanel from './components/SettingsAccountsPanel';
 import StrategyInstancesPanel from './components/StrategyInstancesPanel';
+import CondorSetupPanel from './components/CondorSetupPanel';
 import PatternEnginePage from './components/pattern_engine/PatternEnginePage';
 
 const REFRESH_INTERVAL = 12000;
@@ -85,6 +86,7 @@ function SettingsPage({ brokerStatus }) {
           element={(
             <div style={{ marginTop: 12 }}>
               <SettingsAccountsPanel />
+              <CondorSetupPanel />
               <StrategyInstancesPanel />
             </div>
           )}

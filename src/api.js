@@ -38,6 +38,11 @@ export const fetchRecommendations = () => api.get('/api/recommendations');
 export const triggerEvaluation = () => api.post('/api/evaluate/run');
 export const fetchEvalStatus = () => api.get('/api/evaluate/status');
 
+// Pre-market Condor Setup (informational — manual setup only)
+export const fetchTodaysCondorSetup = () => api.get('/api/condor-setup/today');
+export const fetchCondorSetupStatus = () => api.get('/api/condor-setup/status');
+export const triggerCondorSetupRecompute = () => api.post('/api/condor-setup/recompute');
+
 // Market Intelligence
 export const fetchIntelligence = () => api.get('/api/intelligence');
 export const fetchIntelligenceNews = (days = 1) => api.get(`/api/intelligence/news?days=${encodeURIComponent(days)}`);
