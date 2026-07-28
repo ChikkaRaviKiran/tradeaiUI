@@ -24,6 +24,7 @@ import SettingsAccountsPanel from './components/SettingsAccountsPanel';
 import StrategyInstancesPanel from './components/StrategyInstancesPanel';
 import CondorSetupPanel from './components/CondorSetupPanel';
 import LevelZonesPanel from './components/LevelZonesPanel';
+import PaperTradesPanel from './components/PaperTradesPanel';
 import PatternEnginePage from './components/pattern_engine/PatternEnginePage';
 
 const REFRESH_INTERVAL = 12000;
@@ -70,6 +71,9 @@ function SettingsPage({ brokerStatus }) {
         <NavLink to="/settings/accounts" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
           Accounts & Strategies
         </NavLink>
+        <NavLink to="/settings/levels" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+          Levels & Alerts
+        </NavLink>
         <NavLink to="/settings/strategy" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
           Strategy
         </NavLink>
@@ -87,9 +91,17 @@ function SettingsPage({ brokerStatus }) {
           element={(
             <div style={{ marginTop: 12 }}>
               <SettingsAccountsPanel />
+              <StrategyInstancesPanel />
+            </div>
+          )}
+        />
+        <Route
+          path="levels"
+          element={(
+            <div style={{ marginTop: 12 }}>
               <CondorSetupPanel />
               <LevelZonesPanel />
-              <StrategyInstancesPanel />
+              <PaperTradesPanel />
             </div>
           )}
         />

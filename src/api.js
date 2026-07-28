@@ -45,6 +45,8 @@ export const triggerCondorSetupRecompute = () => api.post('/api/condor-setup/rec
 
 // Weekly/monthly S/R confluence zones (informational only — no strategy attached)
 export const fetchLevelZones = (symbol) => api.get(`/api/level-zones/${symbol}`);
+export const fetchLevelZoneTrades = (symbol = null) => api.get('/api/level-zone-alerts/trades', { params: symbol ? { symbol } : {} });
+export const fetchLevelZoneAlertStatus = () => api.get('/api/level-zone-alerts/status');
 
 // Market Intelligence
 export const fetchIntelligence = () => api.get('/api/intelligence');
