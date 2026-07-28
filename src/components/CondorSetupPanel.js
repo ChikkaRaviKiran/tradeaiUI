@@ -36,6 +36,15 @@ function LegRow({ label, strike }) {
 
 function CondorSetupCard({ setup, recommendedIndex }) {
   const isRecommended = setup.index === recommendedIndex;
+  // Actual realized wing distance (may differ from the configured target for
+  // indices whose strike step doesn't evenly divide wing_width_points, e.g.
+  // SENSEX's 100-pt step vs the 250-pt target - strikes are rounded outward
+  // to the nearest valid strike, so the real gap can be wider than the target).
+  const ceWidth = setup.long_ce_strike != null && setup.short_ce_strike != null
+    ? setup.long_ce_strike - setup.short_ce_strike : null;
+  const peWidth = setup.short_pe_strike != null && setup.long_pe_strike != null
+    ? setup.short_pe_strike - setup.long_pe_strike : null;
+  const widthsMatchTarget = ceWidth === setup.wing_width_points && peWidth === setup.wing_width_points;
   return (
     <div className="card" style={{ flex: 1, minWidth: 320, position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -89,7 +98,15 @@ function CondorSetupCard({ setup, recommendedIndex }) {
           </table>
 
           <div style={{ marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
-            Wing width: {setup.wing_width_points} pts · Lot size: {setup.lot_size} · Expiry: {WEEKDAY_NAMES[setup.expiry_weekday]}
+            {widthsMatchTarget ? (
+              <>Wing width: {setup.wing_width_points} pts</>
+            ) : (
+              <>
+                Wing width: CE +{ceWidth} / PE -{peWidth} pts
+                <span style={{ color: '#64748b' }}> (target {setup.wing_width_points}, widened to nearest valid strike)</span>
+              </>
+            )}
+            {' '}· Lot size: {setup.lot_size} · Expiry: {WEEKDAY_NAMES[setup.expiry_weekday]}
           </div>
         </>
       )}
