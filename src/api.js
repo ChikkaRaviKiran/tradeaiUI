@@ -43,6 +43,9 @@ export const fetchTodaysCondorSetup = () => api.get('/api/condor-setup/today');
 export const fetchCondorSetupStatus = () => api.get('/api/condor-setup/status');
 export const triggerCondorSetupRecompute = () => api.post('/api/condor-setup/recompute');
 
+// Weekly/monthly S/R confluence zones (informational only — no strategy attached)
+export const fetchLevelZones = (symbol) => api.get(`/api/level-zones/${symbol}`);
+
 // Market Intelligence
 export const fetchIntelligence = () => api.get('/api/intelligence');
 export const fetchIntelligenceNews = (days = 1) => api.get(`/api/intelligence/news?days=${encodeURIComponent(days)}`);
