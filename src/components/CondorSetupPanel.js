@@ -23,12 +23,15 @@ function StatusBadge({ status }) {
   );
 }
 
-function LegRow({ label, strike }) {
+function LegRow({ label, strike, otmText }) {
   return (
     <tr>
       <td style={{ padding: '4px 10px', color: '#94a3b8' }}>{label}</td>
       <td style={{ padding: '4px 10px', fontWeight: 700, textAlign: 'right' }}>
         {strike != null ? strike : '—'}
+        {otmText && (
+          <div style={{ fontWeight: 400, fontSize: 11, color: '#64748b' }}>{otmText}</div>
+        )}
       </td>
     </tr>
   );
@@ -45,6 +48,27 @@ function CondorSetupCard({ setup, recommendedIndex }) {
   const peWidth = setup.short_pe_strike != null && setup.long_pe_strike != null
     ? setup.short_pe_strike - setup.long_pe_strike : null;
   const widthsMatchTarget = ceWidth === setup.wing_width_points && peWidth === setup.wing_width_points;
+
+  // How far OTM the two SELL (short) legs are — both in raw points from spot
+  // and in strikes-from-ATM (e.g. "ATM+1") for readability across indices
+  // with different strike steps.
+  const ceOtmPoints = setup.short_ce_strike != null && setup.spot != null
+    ? Math.round(setup.short_ce_strike - setup.spot) : null;
+  const peOtmPoints = setup.short_pe_strike != null && setup.spot != null
+    ? Math.round(setup.spot - setup.short_pe_strike) : null;
+  const ceOtmStrikes = setup.short_ce_strike != null && setup.atm_strike != null && setup.strike_interval
+    ? Math.round((setup.short_ce_strike - setup.atm_strike) / setup.strike_interval) : null;
+  const peOtmStrikes = setup.short_pe_strike != null && setup.atm_strike != null && setup.strike_interval
+    ? Math.round((setup.atm_strike - setup.short_pe_strike) / setup.strike_interval) : null;
+  const ceOtmText = ceOtmPoints != null
+    ? `${ceOtmPoints} pts OTM${ceOtmStrikes != null ? ` (ATM+${ceOtmStrikes})` : ''}` : null;
+  const peOtmText = peOtmPoints != null
+    ? `${peOtmPoints} pts OTM${peOtmStrikes != null ? ` (ATM-${peOtmStrikes})` : ''}` : null;
+
+  const computedAtTime = setup.computed_at
+    ? new Date(setup.computed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+    : null;
+
   return (
     <div className="card" style={{ flex: 1, minWidth: 320, position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -90,12 +114,19 @@ function CondorSetupCard({ setup, recommendedIndex }) {
 
           <table style={{ width: '100%', marginTop: 14, borderCollapse: 'collapse' }}>
             <tbody>
-              <LegRow label="SELL CE (short)" strike={setup.short_ce_strike} />
-              <LegRow label="SELL PE (short)" strike={setup.short_pe_strike} />
+              <LegRow label="SELL CE (short)" strike={setup.short_ce_strike} otmText={ceOtmText} />
+              <LegRow label="SELL PE (short)" strike={setup.short_pe_strike} otmText={peOtmText} />
               <LegRow label="BUY CE (wing / hedge)" strike={setup.long_ce_strike} />
               <LegRow label="BUY PE (wing / hedge)" strike={setup.long_pe_strike} />
             </tbody>
           </table>
+
+          <div style={{ marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
+            {computedAtTime && <>Computed at: {computedAtTime} IST · </>}
+            Suggested entry: ~09:32 AM IST (right after this is computed)
+            {' '}· Suggested exit / square-off: 3:15 PM IST
+            <span style={{ color: '#64748b' }}> (matches the backtested entry/EOD-flatten convention)</span>
+          </div>
 
           <div style={{ marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
             {widthsMatchTarget ? (
