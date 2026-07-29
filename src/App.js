@@ -24,6 +24,7 @@ import SettingsAccountsPanel from './components/SettingsAccountsPanel';
 import StrategyInstancesPanel from './components/StrategyInstancesPanel';
 import CondorSetupPanel from './components/CondorSetupPanel';
 import LevelZonesPanel from './components/LevelZonesPanel';
+import ExpiryLevelsPanel from './components/ExpiryLevelsPanel';
 import PaperTradesPanel from './components/PaperTradesPanel';
 import PatternEnginePage from './components/pattern_engine/PatternEnginePage';
 
@@ -100,6 +101,7 @@ function SettingsPage({ brokerStatus }) {
           element={(
             <div style={{ marginTop: 12 }}>
               <CondorSetupPanel />
+              <ExpiryLevelsPanel />
               <LevelZonesPanel />
               <PaperTradesPanel />
             </div>

@@ -48,6 +48,12 @@ export const fetchLevelZones = (symbol) => api.get(`/api/level-zones/${symbol}`)
 export const fetchLevelZoneTrades = (symbol = null) => api.get('/api/level-zone-alerts/trades', { params: symbol ? { symbol } : {} });
 export const fetchLevelZoneAlertStatus = () => api.get('/api/level-zone-alerts/status');
 
+// Weekly (Wed→Tue) + Monthly Classic-pivot (3R/3S) expiry-planning charts
+// (informational only — auto-recomputed on schedule, see backend scheduler)
+export const fetchExpiryLevels = (symbol, timeframe) => api.get(`/api/expiry-levels/${symbol}/${timeframe}`);
+export const fetchExpiryLevelsStatus = () => api.get('/api/expiry-levels/status');
+export const triggerExpiryLevelsRecompute = () => api.post('/api/expiry-levels/recompute');
+
 // Market Intelligence
 export const fetchIntelligence = () => api.get('/api/intelligence');
 export const fetchIntelligenceNews = (days = 1) => api.get(`/api/intelligence/news?days=${encodeURIComponent(days)}`);
