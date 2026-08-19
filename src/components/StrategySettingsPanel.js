@@ -132,12 +132,13 @@ export default function StrategySettingsPanel() {
       const strikeMode = (form.strike_mode || 'ATM').toUpperCase();
       const otmSteps = Math.max(0, num(form.otm_strikes, 0));
       const strikeInterval = Math.max(1, num(form.strike_interval, 50));
+      const usesOffset = strikeMode === 'STRANGLE' || strikeMode === 'MAXPAIN';
       const payload = {
         ...form,
         strategy_type: 'ATM_STRADDLE',
         strike_mode: strikeMode,
-        otm_strikes: strikeMode === 'STRANGLE' ? otmSteps : 0,
-        offset_points: strikeMode === 'STRANGLE' ? otmSteps * strikeInterval : 0,
+        otm_strikes: usesOffset ? otmSteps : 0,
+        offset_points: usesOffset ? otmSteps * strikeInterval : 0,
         static_legs: !!form.static_legs,
         lots: Math.max(1, num(form.lots, 1)),
         strike_interval: strikeInterval,
@@ -470,10 +471,11 @@ export default function StrategySettingsPanel() {
             <select value={form.strike_mode || 'ATM'} onChange={(e) => setForm((s) => ({ ...s, strike_mode: e.target.value }))}>
               <option value="ATM">ATM Straddle</option>
               <option value="STRANGLE">OTM Strangle</option>
+              <option value="MAXPAIN">MaxPain Anchor</option>
             </select>
           </label>
 
-          {String(form.strike_mode).toUpperCase() === 'STRANGLE' && (
+          {(String(form.strike_mode).toUpperCase() === 'STRANGLE' || String(form.strike_mode).toUpperCase() === 'MAXPAIN') && (
             <label className="atl-field">
               <span>OTM Strikes (1=+1 step, 2=+2 step…)</span>
               <input

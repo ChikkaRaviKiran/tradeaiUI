@@ -231,6 +231,7 @@ export default function StrategyInstancesPanel() {
   };
 
   const isStrangle = form.strategy_type === 'OTM_STRANGLE';
+  const usesOffset = ['STRANGLE', 'MAXPAIN'].includes(String(form.strike_mode || '').toUpperCase());
 
   return (
     <div className="card">
@@ -400,7 +401,27 @@ export default function StrategyInstancesPanel() {
               <input type="number" min="1" value={form.strike_interval} onChange={(e) => setForm({ ...form, strike_interval: e.target.value })} />
             </label>
 
-            {isStrangle && (
+            <label className="atl-field">
+              <span>Strike Mode</span>
+              <select
+                value={form.strike_mode}
+                onChange={(e) => setForm({ ...form, strike_mode: e.target.value })}
+              >
+                {isStrangle ? (
+                  <>
+                    <option value="STRANGLE">OTM Strangle (ATM anchor)</option>
+                    <option value="MAXPAIN">OTM Strangle (MaxPain anchor)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="ATM">ATM Straddle</option>
+                    <option value="MAXPAIN">MaxPain Anchor</option>
+                  </>
+                )}
+              </select>
+            </label>
+
+            {usesOffset && (
               <label className="atl-field">
                 <span>OTM Strikes (steps)</span>
                 <input type="number" min="1" max="20" value={form.otm_strikes}
