@@ -133,9 +133,10 @@ export default function StrategySettingsPanel() {
       const otmSteps = Math.max(0, num(form.otm_strikes, 0));
       const strikeInterval = Math.max(1, num(form.strike_interval, 50));
       const usesOffset = strikeMode === 'STRANGLE' || strikeMode === 'MAXPAIN';
+      const strategyType = strikeMode === 'MAXPAIN' ? 'MAXPAIN_ROLL' : 'ATM_STRADDLE';
       const payload = {
         ...form,
-        strategy_type: 'ATM_STRADDLE',
+        strategy_type: strategyType,
         strike_mode: strikeMode,
         otm_strikes: usesOffset ? otmSteps : 0,
         offset_points: usesOffset ? otmSteps * strikeInterval : 0,

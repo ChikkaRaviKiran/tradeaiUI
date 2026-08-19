@@ -11,6 +11,7 @@ import {
 const STRATEGY_TYPES = [
   { value: 'ATM_STRADDLE', label: 'ATM Straddle' },
   { value: 'OTM_STRANGLE', label: 'OTM Strangle' },
+  { value: 'MAXPAIN_ROLL', label: 'MaxPain Roll' },
 ];
 
 const INDICES = ['NIFTY', 'BANKNIFTY', 'SENSEX'];
@@ -54,7 +55,7 @@ const EMPTY = {
 
 function TypeBadge({ type }) {
   const label = STRATEGY_TYPES.find((t) => t.value === type)?.label || type;
-  const color = type === 'OTM_STRANGLE' ? '#a855f7' : '#3b82f6';
+  const color = type === 'OTM_STRANGLE' ? '#a855f7' : (type === 'MAXPAIN_ROLL' ? '#f59e0b' : '#3b82f6');
   return (
     <span style={{
       background: color, color: '#fff', padding: '3px 10px',
@@ -231,6 +232,7 @@ export default function StrategyInstancesPanel() {
   };
 
   const isStrangle = form.strategy_type === 'OTM_STRANGLE';
+  const isMaxPainRoll = form.strategy_type === 'MAXPAIN_ROLL';
   const usesOffset = ['STRANGLE', 'MAXPAIN'].includes(String(form.strike_mode || '').toUpperCase());
 
   return (
@@ -352,8 +354,8 @@ export default function StrategyInstancesPanel() {
                   setForm({
                     ...form,
                     strategy_type: t,
-                    strike_mode: t === 'OTM_STRANGLE' ? 'STRANGLE' : 'ATM',
-                    otm_strikes: t === 'OTM_STRANGLE' ? Math.max(1, Number(form.otm_strikes) || 1) : 0,
+                    strike_mode: t === 'OTM_STRANGLE' ? 'STRANGLE' : (t === 'MAXPAIN_ROLL' ? 'MAXPAIN' : 'ATM'),
+                    otm_strikes: (t === 'OTM_STRANGLE' || t === 'MAXPAIN_ROLL') ? Math.max(1, Number(form.otm_strikes) || 1) : 0,
                   });
                 }}>
                 {STRATEGY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -411,6 +413,10 @@ export default function StrategyInstancesPanel() {
                   <>
                     <option value="STRANGLE">OTM Strangle (ATM anchor)</option>
                     <option value="MAXPAIN">OTM Strangle (MaxPain anchor)</option>
+                  </>
+                ) : isMaxPainRoll ? (
+                  <>
+                    <option value="MAXPAIN">MaxPain Roll (MaxPain anchor)</option>
                   </>
                 ) : (
                   <>
