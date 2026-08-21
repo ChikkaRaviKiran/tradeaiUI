@@ -6,6 +6,7 @@ const STRATEGIES = [
   { value: 'BEAR_PUT_SPREAD', label: 'Bear Put Spread', signal: 'Move DOWN toward support', color: 'var(--accent-red)', rule: 'Buy ATM PE; sell PE at support.' },
   { value: 'BULL_PUT_SPREAD', label: 'Bull Put Spread', signal: 'Support will HOLD', color: 'var(--accent-green)', rule: 'Sell PE at support; buy a lower PE for protection.' },
   { value: 'BEAR_CALL_SPREAD', label: 'Bear Call Spread', signal: 'Resistance will HOLD', color: 'var(--accent-red)', rule: 'Sell CE at resistance; buy a higher CE for protection.' },
+  { value: 'MAXPAIN_ROLL', label: 'MaxPain Roll', signal: 'Price gravitates toward max pain', color: 'var(--accent-yellow)', rule: 'Sell CE and PE at max pain; loss is unlimited without hedges.' },
 ];
 
 const money = (value) => value == null ? '—' : `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -56,7 +57,7 @@ export default function OiStrategiesPage() {
   const placeOrder = async () => {
     if (!preview || !accountId) { setError('Select a trade account before placing the order.'); return; }
     if (!window.confirm(`Place ${selected.label} in ${accounts.find((a) => String(a.id) === String(accountId))?.name || 'selected account'}?`)) return;
-    try { setBusy(true); setError(''); const result = await placeOiStrategy({ strategy, symbol: market.symbol, lots: Number(lots), wing_width: Number(wingWidth), account_id: Number(accountId), confirm: true }); setMessage(result.data.complete ? 'All strategy legs were sent successfully.' : 'Order sequence was incomplete. Check each leg status below.'); setPreview({ ...preview, execution: result.data }); }
+    try { setBusy(true); setError(''); const result = await placeOiStrategy({ strategy, symbol: market.symbol, lots: Number(lots), account_id: Number(accountId), confirm: true }); setMessage(result.data.complete ? 'All strategy legs were sent successfully.' : 'Order sequence was incomplete. Check each leg status below.'); setPreview({ ...preview, execution: result.data }); }
     catch (e) { setError(e?.response?.data?.detail || 'Order placement failed.'); }
     finally { setBusy(false); }
   };
