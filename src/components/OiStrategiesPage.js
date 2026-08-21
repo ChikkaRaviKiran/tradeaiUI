@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { fetchBrokerAccounts, fetchOiStrategyMarket, placeOiStrategy, previewOiStrategy } from '../api';
 
 const STRATEGIES = [
@@ -35,6 +35,7 @@ export default function OiStrategiesPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const lastDefaultStrategy = useRef(null);
 
   const loadMarket = async () => {
     setError('');
@@ -63,7 +64,7 @@ export default function OiStrategiesPage() {
   useEffect(() => { buildPreview(); }, [strategy, lots, buyStrike, sellStrike, market]);
 
   useEffect(() => {
-    if (!market) return;
+    if (!market || (lastDefaultStrategy.current === strategy && buyStrike !== '' && sellStrike !== '')) return;
     const step = Number(market.strike_interval) || 50;
     const round = (value) => Math.round(Number(value) / step) * step;
     const defaults = {
@@ -73,8 +74,12 @@ export default function OiStrategiesPage() {
       BEAR_CALL_SPREAD: [round(market.resistance), round(market.resistance + step * 4)],
       MAXPAIN_ROLL: [round(market.max_pain), round(market.max_pain)],
     }[strategy];
-    if (defaults) { setBuyStrike(String(defaults[0])); setSellStrike(String(defaults[1])); }
-  }, [market, strategy]);
+    if (defaults) {
+      lastDefaultStrategy.current = strategy;
+      setBuyStrike(String(defaults[0]));
+      setSellStrike(String(defaults[1]));
+    }
+  }, [market, strategy, buyStrike, sellStrike]);
 
   const selected = STRATEGIES.find((x) => x.value === strategy) || STRATEGIES[0];
   const placeOrder = async () => {
