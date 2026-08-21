@@ -27,6 +27,7 @@ import LevelZonesPanel from './components/LevelZonesPanel';
 import ExpiryLevelsPanel from './components/ExpiryLevelsPanel';
 import PaperTradesPanel from './components/PaperTradesPanel';
 import PatternEnginePage from './components/pattern_engine/PatternEnginePage';
+import OiStrategiesPage from './components/OiStrategiesPage';
 
 const REFRESH_INTERVAL = 12000;
 
@@ -253,6 +254,9 @@ function App() {
             <NavLink to="/atm" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
               ATM Straddle
             </NavLink>
+            <NavLink to="/oi-strategies" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+              OI Strategies
+            </NavLink>
             <NavLink to="/patterns" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
               Patterns
             </NavLink>
@@ -319,6 +323,7 @@ function App() {
         <Route path="/positions" element={<PositionsPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/atm" element={<ATMStrategyPage />} />
+        <Route path="/oi-strategies" element={<OiStrategiesPage />} />
         <Route path="/patterns" element={<PatternEnginePage />} />
         <Route path="/settings/*" element={<SettingsPage brokerStatus={brokerStatus} />} />
         <Route path="*" element={<Navigate to="/cockpit" replace />} />

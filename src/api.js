@@ -9,6 +9,9 @@ const api = axios.create({
 });
 
 export const fetchAllSnapshots = () => api.get('/api/market/snapshots');
+export const fetchOiStrategyMarket = (symbol = 'NIFTY') => api.get('/api/oi-strategies/market', { params: { symbol } });
+export const previewOiStrategy = (payload) => api.post('/api/oi-strategies/preview', payload);
+export const placeOiStrategy = (payload) => api.post('/api/oi-strategies/place', payload);
 export const fetchGlobalIndices = () => api.get('/api/market/global-indices');
 export const fetchActiveTrades = () => api.get('/api/trades/active');
 export const fetchTodayTrades = () => api.get('/api/trades/today');
