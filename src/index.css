@@ -227,6 +227,51 @@ body {
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
 .grid-6 { grid-template-columns: repeat(6, 1fr); }
 
+.oi-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.oi-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.oi-field input,
+.oi-field select {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 500;
+}
+
+.oi-field input:focus,
+.oi-field select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.oi-account-field {
+  margin-top: 14px;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .oi-form-grid { grid-template-columns: 1fr; }
+}
+
 /* ─── Cards ──────────────────────────────────────────────────────────── */
 .card {
   background: var(--bg-card);

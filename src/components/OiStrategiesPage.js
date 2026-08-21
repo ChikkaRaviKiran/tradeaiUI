@@ -28,8 +28,19 @@ export default function OiStrategiesPage() {
   const [error, setError] = useState('');
 
   const loadMarket = async () => {
-    try { setError(''); const [m, a] = await Promise.all([fetchOiStrategyMarket('NIFTY'), fetchBrokerAccounts()]); setMarket(m.data); const list = a.data?.accounts || []; setAccounts(list); if (!accountId) setAccountId(String(list.find((x) => x.is_primary)?.id || list[0]?.id || '')); }
-    catch (e) { setError(e?.response?.data?.detail || 'OI data is not available yet. Start the market data service and try again.'); }
+    setError('');
+    const [marketResult, accountResult] = await Promise.allSettled([fetchOiStrategyMarket('NIFTY'), fetchBrokerAccounts()]);
+    if (marketResult.status === 'fulfilled') {
+      setMarket(marketResult.value.data);
+    } else {
+      setMarket(null);
+      setError(marketResult.reason?.response?.data?.detail || 'OI data is not available yet. Start the market data service and try again.');
+    }
+    if (accountResult.status === 'fulfilled') {
+      const list = accountResult.value.data?.accounts || [];
+      setAccounts(list);
+      if (!accountId) setAccountId(String(list.find((x) => x.is_primary)?.id || list[0]?.id || ''));
+    }
   };
 
   const buildPreview = async () => {
@@ -75,7 +86,7 @@ export default function OiStrategiesPage() {
     </div>
 
     <div className="grid grid-2" style={{ marginTop: 14 }}>
-      <div className="card"><div className="card-title">Trade setup</div><div style={{ color: selected.color, fontWeight: 700, margin: '8px 0' }}>{selected.label}: {selected.signal}</div><div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{selected.rule} The page will show exactly what happens at support, max pain, and resistance before you place the order.</div><div className="grid grid-2" style={{ marginTop: 14 }}><label>Lots<input type="number" min="1" value={lots} onChange={(e) => setLots(Math.max(1, Number(e.target.value) || 1))} /></label><label>Wing width<input type="number" min={market?.strike_interval || 50} step={market?.strike_interval || 50} value={wingWidth} onChange={(e) => setWingWidth(Number(e.target.value) || 200)} /></label></div><label style={{ display: 'block', marginTop: 12 }}>Trade account<select value={accountId} onChange={(e) => setAccountId(e.target.value)}><option value="">Select account</option>{accounts.filter((a) => a.is_active).map((a) => <option key={a.id} value={a.id}>{a.name} ({String(a.broker).toUpperCase()}){a.paper_trading ? ' - PAPER' : ''}</option>)}</select></label></div>
+      <div className="card"><div className="card-title">Trade setup</div><div style={{ color: selected.color, fontWeight: 700, margin: '8px 0' }}>{selected.label}: {selected.signal}</div><div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{selected.rule} The page will show exactly what happens at support, max pain, and resistance before you place the order.</div><div className="oi-form-grid" style={{ marginTop: 14 }}><label className="oi-field"><span>Lots</span><input type="number" min="1" value={lots} onChange={(e) => setLots(Math.max(1, Number(e.target.value) || 1))} /></label><label className="oi-field"><span>Wing width</span><input type="number" min={market?.strike_interval || 50} step={market?.strike_interval || 50} value={wingWidth} onChange={(e) => setWingWidth(Number(e.target.value) || 200)} /></label></div><label className="oi-field oi-account-field"><span>Trade account</span><select value={accountId} onChange={(e) => setAccountId(e.target.value)}><option value="">Select account</option>{accounts.filter((a) => a.is_active).map((a) => <option key={a.id} value={a.id}>{a.name} ({String(a.broker).toUpperCase()}){a.paper_trading ? ' - PAPER' : ''}</option>)}</select></label></div>
       <div className="card"><div className="card-title">Why this strategy?</div><div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.7 }}><div>Below support: <strong style={{ color: 'var(--accent-red)' }}>{preview ? money(preview.metrics.scenario_payoffs[0]?.pnl) : '—'}</strong> at {price(market?.support)}</div><div>At max pain: <strong>{preview ? money(preview.metrics.scenario_payoffs[1]?.pnl) : '—'}</strong> at {price(market?.max_pain)}</div><div>At resistance: <strong style={{ color: 'var(--accent-green)' }}>{preview ? money(preview.metrics.scenario_payoffs[2]?.pnl) : '—'}</strong> at {price(market?.resistance)}</div></div><div style={{ marginTop: 12, padding: 10, background: 'var(--bg-primary)', fontSize: 12, color: 'var(--text-secondary)' }}>Support is the highest put-OI cluster. Resistance is the highest call-OI cluster. Max pain is shown as context and does not override your selected strategy.</div></div>
     </div>
 
