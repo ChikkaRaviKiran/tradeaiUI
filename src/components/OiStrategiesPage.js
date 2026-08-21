@@ -9,8 +9,15 @@ const STRATEGIES = [
   { value: 'MAXPAIN_ROLL', label: 'MaxPain Roll', signal: 'Price gravitates toward max pain', color: 'var(--accent-yellow)', rule: 'Sell CE and PE at max pain; loss is unlimited without hedges.' },
 ];
 
-const money = (value) => value == null ? '—' : `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-const price = (value) => value == null ? '—' : Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+const money = (value) => {
+  if (value == null || value === '' || typeof value === 'string') return value || '—';
+  const number = Number(value);
+  return Number.isFinite(number) ? `₹${number.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '—';
+};
+const price = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '—';
+};
 
 function Metric({ label, value, tone }) {
   return <div className="card" style={{ padding: 14, borderTop: `3px solid ${tone || 'var(--border-light)'}` }}><div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>{label}</div><div style={{ fontSize: 20, fontWeight: 700, marginTop: 5 }}>{value}</div></div>;
@@ -21,6 +28,8 @@ export default function OiStrategiesPage() {
   const [accounts, setAccounts] = useState([]);
   const [strategy, setStrategy] = useState(STRATEGIES[0].value);
   const [lots, setLots] = useState(1);
+  const [buyStrike, setBuyStrike] = useState('');
+  const [sellStrike, setSellStrike] = useState('');
   const [accountId, setAccountId] = useState('');
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -45,19 +54,33 @@ export default function OiStrategiesPage() {
 
   const buildPreview = async () => {
     if (!market) return;
-    try { setBusy(true); setError(''); const result = await previewOiStrategy({ strategy, symbol: market.symbol, lots: Number(lots), account_id: Number(accountId) || null }); setPreview(result.data); }
+    try { setBusy(true); setError(''); const result = await previewOiStrategy({ strategy, symbol: market.symbol, lots: Number(lots), buy_strike: Number(buyStrike) || null, sell_strike: Number(sellStrike) || null, account_id: Number(accountId) || null }); setPreview(result.data); }
     catch (e) { setPreview(null); setError(e?.response?.data?.detail || 'Could not build strategy preview.'); }
     finally { setBusy(false); }
   };
 
   useEffect(() => { loadMarket(); const timer = setInterval(loadMarket, 30000); return () => clearInterval(timer); }, []);
-  useEffect(() => { buildPreview(); }, [strategy, lots, market]);
+  useEffect(() => { buildPreview(); }, [strategy, lots, buyStrike, sellStrike, market]);
+
+  useEffect(() => {
+    if (!market) return;
+    const step = Number(market.strike_interval) || 50;
+    const round = (value) => Math.round(Number(value) / step) * step;
+    const defaults = {
+      BULL_CALL_SPREAD: [round(market.spot), round(market.resistance)],
+      BEAR_PUT_SPREAD: [round(market.spot), round(market.support)],
+      BULL_PUT_SPREAD: [round(market.support), round(market.support - step * 4)],
+      BEAR_CALL_SPREAD: [round(market.resistance), round(market.resistance + step * 4)],
+      MAXPAIN_ROLL: [round(market.max_pain), round(market.max_pain)],
+    }[strategy];
+    if (defaults) { setBuyStrike(String(defaults[0])); setSellStrike(String(defaults[1])); }
+  }, [market, strategy]);
 
   const selected = STRATEGIES.find((x) => x.value === strategy) || STRATEGIES[0];
   const placeOrder = async () => {
     if (!preview || !accountId) { setError('Select a trade account before placing the order.'); return; }
     if (!window.confirm(`Place ${selected.label} in ${accounts.find((a) => String(a.id) === String(accountId))?.name || 'selected account'}?`)) return;
-    try { setBusy(true); setError(''); const result = await placeOiStrategy({ strategy, symbol: market.symbol, lots: Number(lots), account_id: Number(accountId), confirm: true }); setMessage(result.data.complete ? 'All strategy legs were sent successfully.' : 'Order sequence was incomplete. Check each leg status below.'); setPreview({ ...preview, execution: result.data }); }
+    try { setBusy(true); setError(''); const result = await placeOiStrategy({ strategy, symbol: market.symbol, lots: Number(lots), buy_strike: Number(buyStrike), sell_strike: Number(sellStrike), account_id: Number(accountId), confirm: true }); setMessage(result.data.complete ? 'All strategy legs were sent successfully.' : 'Order sequence was incomplete. Check each leg status below.'); setPreview({ ...preview, execution: result.data }); }
     catch (e) { setError(e?.response?.data?.detail || 'Order placement failed.'); }
     finally { setBusy(false); }
   };
@@ -86,11 +109,11 @@ export default function OiStrategiesPage() {
     </div>
 
     <div className="grid grid-2" style={{ marginTop: 14 }}>
-      <div className="card"><div className="card-title">Trade setup</div><div style={{ color: selected.color, fontWeight: 700, margin: '8px 0' }}>{selected.label}: {selected.signal}</div><div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{selected.rule} Strikes are detected automatically from the live spot price, OI levels, and valid strike interval.</div><div className="oi-form-grid" style={{ marginTop: 14 }}><label className="oi-field"><span>Lots</span><input type="number" min="1" value={lots} onChange={(e) => setLots(Math.max(1, Number(e.target.value) || 1))} /></label><div className="oi-auto-field"><span>Strike selection</span><strong>Automatic from OI levels</strong><small>ATM, support, resistance, and protection strikes are detected for you.</small></div></div><label className="oi-field oi-account-field"><span>Trade account</span><select value={accountId} onChange={(e) => setAccountId(e.target.value)}><option value="">Select account</option>{accounts.filter((a) => a.is_active).map((a) => <option key={a.id} value={a.id}>{a.name} ({String(a.broker).toUpperCase()}){a.paper_trading ? ' - PAPER' : ''}</option>)}</select></label></div>
+      <div className="card"><div className="card-title">Trade setup</div><div style={{ color: selected.color, fontWeight: 700, margin: '8px 0' }}>{selected.label}: {selected.signal}</div><div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{selected.rule} Enter the strikes you want to test. The estimates update before you place the order.</div><div className="oi-form-grid" style={{ marginTop: 14 }}><label className="oi-field"><span>Lots</span><input type="number" min="1" value={lots} onChange={(e) => setLots(Math.max(1, Number(e.target.value) || 1))} /></label><label className="oi-field"><span>{strategy === 'MAXPAIN_ROLL' ? 'Max pain strike' : 'Buy strike'}</span><input type="number" step={market?.strike_interval || 50} value={buyStrike} onChange={(e) => setBuyStrike(e.target.value)} /></label><label className="oi-field"><span>{strategy === 'MAXPAIN_ROLL' ? 'Confirm strike' : 'Sell strike'}</span><input type="number" step={market?.strike_interval || 50} value={sellStrike} onChange={(e) => setSellStrike(e.target.value)} /></label></div><label className="oi-field oi-account-field"><span>Trade account</span><select value={accountId} onChange={(e) => setAccountId(e.target.value)}><option value="">Select account</option>{accounts.filter((a) => a.is_active).map((a) => <option key={a.id} value={a.id}>{a.name} ({String(a.broker).toUpperCase()}){a.paper_trading ? ' - PAPER' : ''}</option>)}</select></label></div>
       <div className="card"><div className="card-title">Why this strategy?</div><div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.7 }}><div>Below support: <strong style={{ color: 'var(--accent-red)' }}>{preview ? money(preview.metrics.scenario_payoffs[0]?.pnl) : '—'}</strong> at {price(market?.support)}</div><div>At max pain: <strong>{preview ? money(preview.metrics.scenario_payoffs[1]?.pnl) : '—'}</strong> at {price(market?.max_pain)}</div><div>At resistance: <strong style={{ color: 'var(--accent-green)' }}>{preview ? money(preview.metrics.scenario_payoffs[2]?.pnl) : '—'}</strong> at {price(market?.resistance)}</div></div><div style={{ marginTop: 12, padding: 10, background: 'var(--bg-primary)', fontSize: 12, color: 'var(--text-secondary)' }}>Support is the highest put-OI cluster. Resistance is the highest call-OI cluster. Max pain is shown as context and does not override your selected strategy.</div></div>
     </div>
 
     <div className="grid grid-4" style={{ marginTop: 14 }}><Metric label="MAX PROFIT / LOT" value={preview ? money(preview.metrics.max_profit_per_lot) : 'Waiting for OI data'} tone="var(--accent-green)" /><Metric label="MAX LOSS / LOT" value={preview ? money(preview.metrics.max_loss_per_lot) : 'Waiting for OI data'} tone="var(--accent-red)" /><Metric label="MARGIN / LOT (DHAN)" value={preview ? money(preview.metrics.broker_margin_required_per_lot || preview.metrics.margin_required_per_lot) : 'Waiting for OI data'} tone="var(--accent-yellow)" /><Metric label="BREAKEVEN" value={preview ? preview.metrics.breakevens.map(price).join(' / ') : 'Waiting for OI data'} tone="var(--accent-blue)" /></div>
-    <div className="card" style={{ marginTop: 14 }}><div className="card-title">Order preview</div>{preview ? <><div style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '6px 0 12px' }}>Expiry {preview.expiry} | Lot size {preview.lot_size} | Estimated total margin {money(preview.metrics.margin_required)}</div><table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}><thead><tr><th align="left">Action</th><th align="left">Contract</th><th align="right">Premium</th><th align="right">Quantity</th></tr></thead><tbody>{preview.legs.map((leg) => <tr key={`${leg.side}-${leg.symbol}`}><td style={{ color: leg.side === 'BUY' ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700 }}>{leg.side}</td><td>{leg.symbol}</td><td align="right">₹{price(leg.premium)}</td><td align="right">{leg.quantity}</td></tr>)}</tbody></table></> : <div className="oi-empty-state">Exact contracts, premiums, max profit, max loss, and margin will appear here after Dhan OI data is available.</div>}<button className="btn btn-start" style={{ marginTop: 14 }} onClick={placeOrder} disabled={busy || !accountId || !preview}>{busy ? 'Processing...' : preview ? 'Review and Place Order' : 'Place Order unavailable'}</button>{preview?.execution && <div style={{ marginTop: 12, fontSize: 12 }}>{preview.execution.results.map((item) => <div key={item.order_id || item.symbol}>{item.status}: {item.side} {item.symbol} {item.message}</div>)}</div>}</div>
+    <div className="card" style={{ marginTop: 14 }}><div className="card-title">Order preview</div>{preview ? <><div style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '6px 0 12px' }}>Expiry {preview.expiry} | Lot size {preview.lot_size} | {preview.metrics.broker_margin_required ? `Dhan margin required ${money(preview.metrics.broker_margin_required)}` : `Dhan margin unavailable; payoff estimate ${money(preview.metrics.margin_required)}`}</div><table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}><thead><tr><th align="left">Action</th><th align="left">Contract</th><th align="right">Premium</th><th align="right">Quantity</th></tr></thead><tbody>{preview.legs.map((leg) => <tr key={`${leg.side}-${leg.symbol}`}><td style={{ color: leg.side === 'BUY' ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700 }}>{leg.side}</td><td>{leg.symbol}</td><td align="right">₹{price(leg.premium)}</td><td align="right">{leg.quantity}</td></tr>)}</tbody></table></> : <div className="oi-empty-state">Exact contracts, premiums, max profit, max loss, and margin will appear here after Dhan OI data is available.</div>}<button className="btn btn-start" style={{ marginTop: 14 }} onClick={placeOrder} disabled={busy || !accountId || !preview}>{busy ? 'Processing...' : preview ? 'Review and Place Order' : 'Place Order unavailable'}</button>{preview?.execution && <div style={{ marginTop: 12, fontSize: 12 }}>{preview.execution.results.map((item) => <div key={item.order_id || item.symbol}>{item.status}: {item.side} {item.symbol} {item.message}</div>)}</div>}</div>
   </section>;
 }
