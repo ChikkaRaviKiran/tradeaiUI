@@ -36,6 +36,7 @@ export default function OiStrategiesPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const lastDefaultStrategy = useRef(null);
+  const previewRequest = useRef(0);
 
   const loadMarket = async () => {
     setError('');
@@ -55,13 +56,17 @@ export default function OiStrategiesPage() {
 
   const buildPreview = async () => {
     if (!market) return;
+    const requestId = ++previewRequest.current;
     try { setBusy(true); setError(''); const result = await previewOiStrategy({ strategy, symbol: market.symbol, lots: Number(lots), buy_strike: Number(buyStrike) || null, sell_strike: Number(sellStrike) || null, account_id: Number(accountId) || null }); setPreview(result.data); }
-    catch (e) { setPreview(null); setError(e?.response?.data?.detail || 'Could not build strategy preview.'); }
+    catch (e) { if (requestId === previewRequest.current) { setPreview(null); setError(e?.response?.data?.detail || 'Could not build strategy preview.'); } }
     finally { setBusy(false); }
   };
 
   useEffect(() => { loadMarket(); const timer = setInterval(loadMarket, 30000); return () => clearInterval(timer); }, []);
-  useEffect(() => { buildPreview(); }, [strategy, lots, buyStrike, sellStrike, market]);
+  useEffect(() => {
+    const timer = setTimeout(() => { buildPreview(); }, 300);
+    return () => clearTimeout(timer);
+  }, [strategy, lots, buyStrike, sellStrike, market]);
 
   useEffect(() => {
     if (!market || (lastDefaultStrategy.current === strategy && buyStrike !== '' && sellStrike !== '')) return;
