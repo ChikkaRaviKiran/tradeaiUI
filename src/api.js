@@ -26,6 +26,7 @@ export const fetchSignals = (limit = 200, date = null) => {
   if (date) params.set('target_date', date);
   return api.get(`/api/signals?${params.toString()}`);
 };
+export const fetchInstruments = () => api.get('/api/instruments');
 export const fetchSystemStatus = () => api.get('/api/system/status');
 export const fetchSystemActivity = () => api.get('/api/system/activity');
 export const startSystem = () => api.post('/api/system/start');

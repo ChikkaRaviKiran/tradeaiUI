@@ -29,6 +29,7 @@ import PaperTradesPanel from './components/PaperTradesPanel';
 import PatternEnginePage from './components/pattern_engine/PatternEnginePage';
 import OiStrategiesPage from './components/OiStrategiesPage';
 import MarketStory from './components/MarketStory';
+import RiskCalculatorPage from './components/RiskCalculatorPage';
 
 const REFRESH_INTERVAL = 12000;
 
@@ -264,6 +265,9 @@ function App() {
             <NavLink to="/market-story" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
               Market Story
             </NavLink>
+            <NavLink to="/calculator" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+              Calculator
+            </NavLink>
             <NavLink to="/settings/accounts" className={({ isActive }) => `tab-btn ${isActive || location.pathname.startsWith('/settings') ? 'active' : ''}`}>
               Settings
             </NavLink>
@@ -330,6 +334,7 @@ function App() {
         <Route path="/oi-strategies" element={<OiStrategiesPage />} />
         <Route path="/patterns" element={<PatternEnginePage />} />
         <Route path="/market-story" element={<MarketStory />} />
+        <Route path="/calculator" element={<RiskCalculatorPage />} />
         <Route path="/settings/*" element={<SettingsPage brokerStatus={brokerStatus} />} />
         <Route path="*" element={<Navigate to="/cockpit" replace />} />
       </Routes>
