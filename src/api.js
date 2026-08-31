@@ -198,4 +198,15 @@ export const peSetPatternNotes = (id, notes) =>
 export const peRebackfillPattern = (id, days = 540, reset = true) =>
   api.post(`/api/pattern-engine/patterns/${encodeURIComponent(id)}/rebackfill`, { days, reset });
 
+// Market Story (positioning)
+const UI_HEADERS = { 'x-requested-with': 'agentic-trading-ui' };
+export const fetchPositioningSessions = (limit = 30) =>
+  api.get(`/api/positioning/sessions?limit=${encodeURIComponent(limit)}`, { headers: UI_HEADERS });
+export const fetchPositioning = (sessionDate) =>
+  api.get(`/api/positioning?session_date=${encodeURIComponent(sessionDate)}`, { headers: UI_HEADERS });
+export const pollPositioning = () =>
+  api.post('/api/positioning/poll', null, { headers: UI_HEADERS });
+export const narratePositioning = (sessionDate) =>
+  api.post(`/api/positioning/story?session_date=${encodeURIComponent(sessionDate)}`, null, { headers: UI_HEADERS, timeout: 300000 });
+
 export default api;
