@@ -339,6 +339,8 @@ export default function SettingsAccountsPanel() {
                       </div>
                     ) : a.proxy_status === 'provisioning' ? (
                       <span style={{ fontSize: 11, color: '#f59e0b' }}>⏳ provisioning…</span>
+                    ) : a.proxy_status === 'failed' ? (
+                      <span style={{ fontSize: 11, color: 'var(--accent-red)' }}>Provisioning failed — retry</span>
                     ) : (
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>none</span>
                     )}
